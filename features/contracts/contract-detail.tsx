@@ -15,17 +15,19 @@ import { DIRECTION_LABEL } from "@/lib/status";
 import { toDocData } from "./contract-document";
 import { ContractVersions } from "./contract-versions";
 import { ContractWorkspace } from "./trade-contract-tab";
+import { useSetPageTitle } from "@/components/layout/page-title";
 
 export function ContractDetail({ id }: { id: Id<"contracts"> }) {
   const data = useQuery(api.contracts.get, { id });
   const family = useQuery(api.contracts.listForTrade, data?.contract ? { tradeId: data.contract.tradeId } : "skip");
+  useSetPageTitle(data?.contract.contractNumber);
 
   if (data === undefined) return <PageSkeleton />;
   const { contract } = data;
   const versionRow = family?.versions.find((v) => v._id === contract._id);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
         back={{ href: "/contracts", label: "Contracts" }}
         title={`${contract.contractNumber}`}

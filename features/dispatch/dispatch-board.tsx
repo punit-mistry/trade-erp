@@ -126,7 +126,7 @@ export function DispatchBoard() {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="B/L & Dispatch"
         description="Shipments in progress: B/L preparation status, checklist completion, blockers and who acts next. Open a trade to edit its B/L and checklist."

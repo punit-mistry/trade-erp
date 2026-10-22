@@ -50,6 +50,16 @@ export function DocumentCentre() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [allVersions, setAllVersions] = useState(false);
 
+  // "+ New → Upload Document" in the top bar links to /documents?upload=1.
+  // Derived during render so a repeat click while already on this page reopens it.
+  const uploadParam = params.get("upload") === "1";
+  const [uploadOpen, setUploadOpen] = useState(uploadParam);
+  const [seenUploadParam, setSeenUploadParam] = useState(uploadParam);
+  if (uploadParam !== seenUploadParam) {
+    setSeenUploadParam(uploadParam);
+    if (uploadParam) setUploadOpen(true);
+  }
+
   // Keep the URL shareable (search/type/review/date) without adding history entries.
   useEffect(() => {
     const next = new URLSearchParams();
@@ -89,7 +99,7 @@ export function DocumentCentre() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="Document Centre"
         description="Every contract, invoice, packing list, certificate and B/L file in one place. Search by file name, trade number, contract number or supplier."
@@ -120,6 +130,8 @@ export function DocumentCentre() {
               <UploadDocumentDialog
                 defaults={{}}
                 allowTradeLink
+                open={uploadOpen}
+                onOpenChange={setUploadOpen}
                 trigger={
                   <Button size="sm">
                     <Upload /> Upload Document

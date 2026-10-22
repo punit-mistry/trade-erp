@@ -186,6 +186,8 @@ export default defineSchema({
     maxUploadMb: v.number(),
     allowedFileTypes: v.array(v.string()), // MIME types
     dispatchChecklistTemplate: v.array(v.string()),
+    // Admin switch for the AI assistant (undefined = on when GEMINI_API_KEY is configured).
+    aiEnabled: v.optional(v.boolean()),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
@@ -509,4 +511,51 @@ export default defineSchema({
     .index("by_trade", ["tradeId"])
     .index("by_actor", ["actorId"])
     .index("by_entityType", ["entityType"]),
+
+  /** AI assistant conversations (private to their owner). */
+  aiThreads: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId", "updatedAt"]),
+
+  aiMessages: defineTable({
+    threadId: v.id("aiThreads"),
+    userId: v.id("users"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    status: v.union(v.literal("pending"), v.literal("streaming"), v.literal("done"), v.literal("error")),
+    error: v.optional(v.string()),
+    model: v.optional(v.string()),
+    contextRefs: v.optional(
+      v.array(v.object({ type: v.string(), id: v.string(), label: v.string(), href: v.string() })),
+    ),
+  }).index("by_thread", ["threadId"]),
+
+  /** Per-user onboarding / tutorial preferences (welcome seen, tours done, checklist state). */
+  userPrefs: defineTable({
+    userId: v.id("users"),
+    welcomeSeenAt: v.optional(v.number()),
+    toursCompleted: v.array(v.string()),
+    checklistDismissed: v.boolean(),
+    checklistCollapsed: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  /** Per-user daily request counter protecting the free-tier quota. */
+  aiUsage: defineTable({
+    userId: v.id("users"),
+    day: v.string(), // YYYY-MM-DD (UTC)
+    count: v.number(),
+  }).index("by_user_day", ["userId", "day"]),
+
+  /** Cached AI trade summaries, invalidated when the trade changes. */
+  aiTradeSummaries: defineTable({
+    tradeId: v.id("trades"),
+    tradeUpdatedAt: v.number(),
+    content: v.string(),
+    model: v.string(),
+    generatedBy: v.id("users"),
+    generatedAt: v.number(),
+  }).index("by_trade", ["tradeId"]),
 });

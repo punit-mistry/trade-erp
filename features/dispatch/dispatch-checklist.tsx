@@ -317,7 +317,7 @@ export function DispatchChecklist({ tradeId }: { tradeId: Id<"trades"> }) {
   }
 
   return (
-    <section className="rounded-lg border bg-card shadow-xs">
+    <section className="rounded-lg border bg-card shadow-xs" data-tour="dispatch-checklist">
       <div className="space-y-3 border-b px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">

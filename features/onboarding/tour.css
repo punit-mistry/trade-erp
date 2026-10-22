@@ -1,0 +1,93 @@
+/* driver.js popover themed to the app tokens (light + dark). */
+.driver-popover.erp-tour {
+  font-family: var(--font-sans);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.4);
+  box-shadow:
+    0 12px 32px -8px oklch(0.2 0.04 262 / 0.28),
+    0 2px 6px oklch(0.2 0.04 262 / 0.08);
+  padding: 16px 16px 14px;
+  min-width: 280px;
+  max-width: 340px;
+}
+.driver-popover.erp-tour .driver-popover-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  padding-right: 20px;
+}
+.driver-popover.erp-tour .driver-popover-description {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+.driver-popover.erp-tour .driver-popover-close-btn {
+  color: var(--muted-foreground);
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+.driver-popover.erp-tour .driver-popover-close-btn:hover,
+.driver-popover.erp-tour .driver-popover-close-btn:focus-visible {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.driver-popover.erp-tour .driver-popover-footer {
+  margin-top: 14px;
+  gap: 8px;
+}
+.driver-popover.erp-tour .driver-popover-progress-text {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.driver-popover.erp-tour .driver-popover-footer-btn {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-shadow: none;
+  padding: 5px 10px;
+  border-radius: calc(var(--radius) * 0.8);
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+.driver-popover.erp-tour .driver-popover-footer-btn:hover {
+  background: var(--muted);
+}
+.driver-popover.erp-tour .driver-popover-footer-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.driver-popover.erp-tour .driver-popover-next-btn {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.driver-popover.erp-tour .driver-popover-next-btn:hover {
+  background: color-mix(in oklch, var(--primary), black 10%);
+}
+.driver-popover.erp-tour .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--popover);
+}
+.driver-popover.erp-tour .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--popover);
+}
+.driver-popover.erp-tour .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--popover);
+}
+.driver-popover.erp-tour .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--popover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .driver-fade .driver-overlay,
+  .driver-fade .driver-popover {
+    animation: none !important;
+  }
+}

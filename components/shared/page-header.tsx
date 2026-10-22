@@ -19,7 +19,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between", className)}>
+    <div className={cn("mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between", className)}>
       <div className="min-w-0 space-y-1">
         {back && (
           <Link
@@ -36,7 +36,11 @@ export function PageHeader({
         </div>
         {description && <p className="max-w-3xl text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2" data-tour="page-actions">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

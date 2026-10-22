@@ -188,7 +188,7 @@ export type NextAction = {
   href?: string;
 };
 
-async function computeNextAction(ctx: QueryCtx, trade: Doc<"trades">, hasBlockingIssues: boolean): Promise<NextAction | null> {
+export async function computeNextAction(ctx: QueryCtx, trade: Doc<"trades">, hasBlockingIssues: boolean): Promise<NextAction | null> {
   const editHref = `/physical-trades/${trade._id}/edit`;
   switch (trade.status) {
     case "draft":

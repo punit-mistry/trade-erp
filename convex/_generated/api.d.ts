@@ -9,6 +9,7 @@
  */
 
 import type * as activity from "../activity.js";
+import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
 import type * as blDocuments from "../blDocuments.js";
 import type * as commodities from "../commodities.js";
@@ -21,11 +22,13 @@ import type * as dispatch from "../dispatch.js";
 import type * as documents from "../documents.js";
 import type * as fx from "../fx.js";
 import type * as http from "../http.js";
+import type * as lib_ai from "../lib/ai.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_defaults from "../lib/defaults.js";
 import type * as lib_documents from "../lib/documents.js";
 import type * as lib_format from "../lib/format.js";
+import type * as lib_helpContent from "../lib/helpContent.js";
 import type * as lib_inheritance from "../lib/inheritance.js";
 import type * as lib_money from "../lib/money.js";
 import type * as lib_numbering from "../lib/numbering.js";
@@ -37,6 +40,7 @@ import type * as lib_tradeValidation from "../lib/tradeValidation.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_workflow from "../lib/workflow.js";
 import type * as lookups from "../lookups.js";
+import type * as onboarding from "../onboarding.js";
 import type * as search from "../search.js";
 import type * as seed from "../seed.js";
 import type * as settings from "../settings.js";
@@ -52,6 +56,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   activity: typeof activity;
+  ai: typeof ai;
   auth: typeof auth;
   blDocuments: typeof blDocuments;
   commodities: typeof commodities;
@@ -64,11 +69,13 @@ declare const fullApi: ApiFromModules<{
   documents: typeof documents;
   fx: typeof fx;
   http: typeof http;
+  "lib/ai": typeof lib_ai;
   "lib/audit": typeof lib_audit;
   "lib/auth": typeof lib_auth;
   "lib/defaults": typeof lib_defaults;
   "lib/documents": typeof lib_documents;
   "lib/format": typeof lib_format;
+  "lib/helpContent": typeof lib_helpContent;
   "lib/inheritance": typeof lib_inheritance;
   "lib/money": typeof lib_money;
   "lib/numbering": typeof lib_numbering;
@@ -80,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   "lib/validators": typeof lib_validators;
   "lib/workflow": typeof lib_workflow;
   lookups: typeof lookups;
+  onboarding: typeof onboarding;
   search: typeof search;
   seed: typeof seed;
   settings: typeof settings;

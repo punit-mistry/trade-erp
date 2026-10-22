@@ -50,7 +50,7 @@ export function TradeContractTab({ tradeId }: { tradeId: Id<"trades"> }) {
   const docData = toDocData(contract);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="contract-tab">
       {data.pendingRevision && data.current && (
         <Alert>
           <GitBranch />

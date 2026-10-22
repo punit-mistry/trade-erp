@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 /** Rounded bordered container for list tables with a sticky header-friendly scroll area. */
 export function TableCard({ toolbar, children, footer }: { toolbar?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-card shadow-xs">
+    <div className="overflow-hidden rounded-lg border bg-card shadow-xs" data-tour="list-table">
       {toolbar && <div className="border-b px-3 py-2.5">{toolbar}</div>}
       <div className="max-h-[calc(100vh-260px)] min-h-40 overflow-auto [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-muted/80 [&_thead]:backdrop-blur">
         {children}
@@ -31,7 +31,7 @@ export function SearchInput({
   className?: string;
 }) {
   return (
-    <div className={cn("relative w-full sm:w-72", className)}>
+    <div className={cn("relative w-full sm:w-72", className)} data-tour="list-search">
       <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}
@@ -67,7 +67,7 @@ export function FilterTabs<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-muted p-0.5">
+    <div role="tablist" aria-label={ariaLabel} data-tour="filters" className="inline-flex flex-wrap items-center gap-0.5 rounded-lg bg-muted p-0.5">
       {options.map((o) => (
         <button
           key={o.value}

@@ -32,6 +32,7 @@ import { TradeDocumentsTab } from "@/features/documents/trade-documents-tab";
 import { DirectionPill } from "./direction-pill";
 import { CloneTradeDialog, CreateTemplateDialog, TradeStatusActions } from "./trade-actions";
 import { ValueOverrideDialog } from "./value-override-dialog";
+import { useSetPageTitle } from "@/components/layout/page-title";
 
 const TABS = ["overview", "terms", "contract", "bl", "documents", "activity"] as const;
 type Tab = (typeof TABS)[number];
@@ -40,6 +41,7 @@ const TOLERANCE_LABEL = { buyer: "Buyer's option", seller: "Seller's option", bo
 
 export function TradeDetail({ id }: { id: Id<"trades"> }) {
   const data = useQuery(api.trades.get, { id });
+  useSetPageTitle(data?.trade.tradeNumber);
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -139,27 +141,41 @@ export function TradeDetail({ id }: { id: Id<"trades"> }) {
       </div>
 
       {nextAction && (
-        <div className="mb-4 flex flex-col gap-2 rounded-lg border border-primary/25 bg-accent/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-xs font-semibold tracking-wide text-primary uppercase">Next step</div>
-            <div className="text-sm font-medium">{nextAction.label}</div>
-            <div className="text-xs text-muted-foreground">{nextAction.description}</div>
+        <div className="mb-4 flex flex-col gap-2 rounded-lg border border-primary/25 bg-accent/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" data-tour="next-step">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden>
+              <ArrowRight className="size-4" />
+            </span>
+            <div>
+              <div className="text-xs font-semibold tracking-wide text-primary uppercase">Next step</div>
+              <div className="text-sm font-medium">{nextAction.label}</div>
+              <div className="text-xs text-muted-foreground">{nextAction.description}</div>
+            </div>
           </div>
-          {(nextAction.href || nextAction.tab) && (
-            <Button
-              size="sm"
-              onClick={() => (nextAction.href ? router.push(nextAction.href) : setTab(nextAction.tab!))}
-              disabled={Boolean(nextAction.href?.endsWith("/edit") || nextAction.href?.includes("/edit?")) && !canEdit}
-            >
-              {nextAction.label} <ArrowRight />
-            </Button>
-          )}
+          {(nextAction.href || nextAction.tab) &&
+            (() => {
+              const blockedByRole = Boolean(nextAction.href?.endsWith("/edit") || nextAction.href?.includes("/edit?")) && !canEdit;
+              return (
+                <div className="flex flex-col items-start gap-1 sm:items-end">
+                  <Button
+                    size="sm"
+                    onClick={() => (nextAction.href ? router.push(nextAction.href) : setTab(nextAction.tab!))}
+                    disabled={blockedByRole}
+                  >
+                    {nextAction.label} <ArrowRight />
+                  </Button>
+                  {blockedByRole && (
+                    <span className="text-[11px] text-muted-foreground">Only the trade owner or a manager can edit this trade.</span>
+                  )}
+                </div>
+              );
+            })()}
         </div>
       )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <div className="overflow-x-auto">
-          <TabsList>
+          <TabsList data-tour="trade-tabs">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="terms">Commercial Terms</TabsTrigger>
             <TabsTrigger value="contract">Contract</TabsTrigger>

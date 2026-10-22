@@ -44,6 +44,12 @@ export const summary = query({
   },
   handler: async (ctx, args) => {
     await requireViewer(ctx);
+    return await summaryData(ctx, args);
+  },
+});
+
+/** Dashboard KPIs. Shared with the AI assistant's grounding — callers must check auth first. */
+export async function summaryData(ctx: QueryCtx, args: { monthStart?: number; monthEnd?: number }) {
     const utc = monthRange(Date.now());
     const monthStart = args.monthStart ?? utc.start;
     const monthEnd = args.monthEnd ?? utc.end;
@@ -193,8 +199,7 @@ export const summary = query({
       upcomingDefinition:
         "Most recent confirmed trades that have a shipment period recorded (shipment periods are free text, so they are listed, not date-sorted).",
     };
-  },
-});
+}
 
 /** Latest current contract versions by last update. */
 export const recentContracts = query({
@@ -237,6 +242,12 @@ export const pendingActions = query({
   args: { today: v.optional(v.string()) },
   handler: async (ctx, args) => {
     await requireViewer(ctx);
+    return await pendingActionsData(ctx, args);
+  },
+});
+
+/** Pending work queues. Shared with the AI assistant's grounding — callers must check auth first. */
+export async function pendingActionsData(ctx: QueryCtx, args: { today?: string }) {
     const today = args.today ?? new Date().toISOString().slice(0, 10);
     const queues: Queue[] = [];
 
@@ -390,8 +401,7 @@ export const pendingActions = query({
     });
 
     return queues.filter((q) => q.count > 0);
-  },
-});
+}
 
 /** Open dispatch checklists that need attention, worst first. */
 export const dispatchOperations = query({

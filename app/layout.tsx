@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -17,12 +18,18 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <ConvexAuthNextjsServerProvider>
-      <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <html
+        lang="en"
+        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+        suppressHydrationWarning
+      >
         <body className="min-h-full">
-          <ConvexClientProvider>
-            <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
-          </ConvexClientProvider>
-          <Toaster richColors closeButton position="top-right" />
+          <ThemeProvider>
+            <ConvexClientProvider>
+              <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+            </ConvexClientProvider>
+            <Toaster richColors closeButton position="top-right" />
+          </ThemeProvider>
         </body>
       </html>
     </ConvexAuthNextjsServerProvider>

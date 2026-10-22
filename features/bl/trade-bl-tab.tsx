@@ -40,7 +40,7 @@ import { RecordIssuedDialog } from "./record-issued-dialog";
 function IssuanceBanner({ bl }: { bl: BlRecord }) {
   if (bl.status === "issued") {
     return (
-      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm">
+      <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm" data-tour="bl-status-banner">
         <BadgeCheck className="mt-0.5 size-4 shrink-0 text-success" />
         <div>
           <span className="font-medium">Carrier-issued B/L recorded</span> — carrier B/L no.{" "}
@@ -51,7 +51,7 @@ function IssuanceBanner({ bl }: { bl: BlRecord }) {
     );
   }
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-sm">
+    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-sm" data-tour="bl-status-banner">
       <Info className="mt-0.5 size-4 shrink-0 text-warning" />
       <div>
         <span className="font-medium">Internal draft — not a carrier-issued B/L.</span>{" "}

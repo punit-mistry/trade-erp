@@ -400,7 +400,7 @@ export function SupplierForm(props: Props) {
         </div>
       </Section>
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6" data-tour="form-actions">
         <span className="mr-auto text-xs text-muted-foreground">
           {isDirty ? "Unsaved changes" : props.mode === "edit" ? "No changes" : "Fields marked * are required"}
         </span>

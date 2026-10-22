@@ -20,10 +20,12 @@ import { formatDate, formatDateTime, formatMoney, formatQuantity } from "@/lib/f
 import { ACTIVE_STATUS, CONTRACT_STATUS, DIRECTION_LABEL, TRADE_STATUS } from "@/lib/status";
 import { ArchiveSupplierDialog, StatusToggleDialog, useSupplierPermissions } from "./supplier-actions";
 import { ROLE_LABEL, TYPE_LABEL } from "./supplier-schema";
+import { useSetPageTitle } from "@/components/layout/page-title";
 
 export function SupplierDetail({ id }: { id: Id<"counterparties"> }) {
   const detail = useQuery(api.counterparties.getDetail, { id });
   const cp = detail?.counterparty;
+  useSetPageTitle(cp?.name);
   const perms = useSupplierPermissions(cp);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);

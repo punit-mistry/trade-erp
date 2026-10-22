@@ -51,7 +51,7 @@ export function AppSidebar() {
           if (items.length === 0) return null;
           return (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="text-[10.5px] tracking-wider uppercase text-sidebar-foreground/55">
+              <SidebarGroupLabel className="text-[10.5px] font-semibold tracking-wider text-sidebar-foreground/50 uppercase">
                 {group.label}
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -59,9 +59,20 @@ export function AppSidebar() {
                   {items.map((item) => {
                     const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                     return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+                      <SidebarMenuItem key={item.href} data-tour={`nav-${item.href.split("/").filter(Boolean).join("-")}`}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.title}
+                          className="relative h-8 text-sidebar-foreground/85 transition-colors hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[active=true]:[&>svg]:text-sidebar-primary"
+                        >
                           <Link href={item.href} onClick={() => setOpenMobile(false)}>
+                            {active && (
+                              <span
+                                aria-hidden
+                                className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r-full bg-sidebar-primary group-data-[collapsible=icon]:hidden"
+                              />
+                            )}
                             <item.icon />
                             <span>{item.title}</span>
                           </Link>
@@ -77,13 +88,38 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         {viewer && (
-          <div className="rounded-md px-2 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
-            <div className="truncate font-medium text-sidebar-accent-foreground">{viewer.name || viewer.email}</div>
-            <div className="text-sidebar-foreground/60">{viewer.role ? ROLE_LABELS[viewer.role] : "—"}</div>
-          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild tooltip={`${viewer.name || viewer.email} · My profile`}>
+                <Link href="/profile" onClick={() => setOpenMobile(false)}>
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[11px] font-semibold text-sidebar-accent-foreground">
+                    {initials(viewer.name || viewer.email)}
+                  </span>
+                  <span className="grid min-w-0 text-left leading-tight">
+                    <span className="truncate text-[13px] font-medium text-sidebar-accent-foreground">
+                      {viewer.name || viewer.email}
+                    </span>
+                    <span className="truncate text-[11px] text-sidebar-foreground/60">
+                      {viewer.role ? ROLE_LABELS[viewer.role] : "—"}
+                    </span>
+                  </span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         )}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
+}
+
+function initials(name?: string | null) {
+  if (!name) return "?";
+  return name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("");
 }

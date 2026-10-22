@@ -15,6 +15,7 @@ import { FxRatesPanel } from "@/features/fx/fx-rates-panel";
 import { DispatchOperations } from "./dispatch-operations";
 import { DefinitionTip, KpiCard, KpiSkeleton } from "./kpi-cards";
 import { PendingActions } from "./pending-actions";
+import { QuickShortcuts } from "./quick-shortcuts";
 import { RecentContracts } from "./recent-contracts";
 
 function greeting(hour: number) {
@@ -40,7 +41,7 @@ export function DashboardView() {
   const firstName = viewer?.name?.split(" ")[0];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title={`${greeting(hour)}${firstName ? `, ${firstName}` : ""}`}
         description={dateLabel}
@@ -56,10 +57,12 @@ export function DashboardView() {
         className="mb-0"
       />
 
+      <QuickShortcuts />
+
       {summary === undefined ? (
         <KpiSkeleton />
       ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="dash-kpis">
           {summary.primary.map((k) => (
             <KpiCard key={k.key} kpi={k} />
           ))}
@@ -96,13 +99,13 @@ export function DashboardView() {
         </div>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="min-w-0 space-y-5">
-          <RecentContracts />
-          <DispatchOperations today={today} />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-w-0 space-y-6">
+          <div data-tour="dash-recent-contracts"><RecentContracts /></div>
+          <div data-tour="dash-dispatch"><DispatchOperations today={today} /></div>
         </div>
-        <div className="min-w-0 space-y-5">
-          <PendingActions today={today} />
+        <div className="min-w-0 space-y-6">
+          <div data-tour="dash-pending"><PendingActions today={today} /></div>
           <Section
             title={
               <span className="flex items-center gap-1.5">

@@ -344,7 +344,7 @@ export function TradeWizard(props: TradeWizardProps) {
 
   return (
     <WizardContext.Provider value={ctxValue}>
-      <div ref={topRef} className="scroll-mt-16" />
+      <div ref={topRef} className="scroll-mt-20" />
       {cloneFrom && (
         <Banner icon={Copy} tone="info">
           Copied from <strong>{cloneFrom.tradeNumber}</strong>. Update the fields that changed — the original trade is not affected,
@@ -386,13 +386,13 @@ export function TradeWizard(props: TradeWizardProps) {
             <button type="submit" hidden aria-hidden tabIndex={-1} />
           </form>
         </div>
-        <div className="order-1 lg:order-2">
+        <div className="order-1 lg:order-2" data-tour="wizard-summary">
           <TradeSummaryCard />
         </div>
       </div>
 
       {/* Sticky action bar */}
-      <div className="sticky bottom-0 z-10 -mx-4 mt-4 border-t bg-background/95 px-4 py-2.5 backdrop-blur md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 border-t bg-background/95 px-4 py-3 shadow-[0_-6px_16px_-10px_rgb(15_23_42/0.25)] backdrop-blur md:-mx-6 md:px-6" data-tour="wizard-actions">
         <div className="flex flex-wrap items-center gap-2">
           <CancelButton
             dirty={autosave.hasUnsavedChanges}
@@ -401,6 +401,7 @@ export function TradeWizard(props: TradeWizardProps) {
             onLeave={() => router.push(leaveHref)}
           />
           <SaveIndicator status={autosave.status} error={autosave.error} onRetry={() => void autosave.save().catch(() => undefined)} />
+          <span className="hidden text-xs text-muted-foreground tabular md:inline">· Step {step} of {STEPS.length}</span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {step > 1 && (
               <Button type="button" variant="outline" onClick={() => ctxValue.goTo((step - 1) as StepId)} disabled={busy}>
@@ -486,7 +487,7 @@ function Stepper({
   issues: { step: number; severity: string }[];
 }) {
   return (
-    <nav aria-label="Booking steps">
+    <nav aria-label="Booking steps" data-tour="wizard-steps" className="space-y-2">
       <ol className="flex gap-1 overflow-x-auto rounded-lg border bg-card p-1 shadow-xs">
         {STEPS.map((s) => {
           const id = s.id as StepId;
@@ -508,8 +509,8 @@ function Stepper({
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular",
                     current && "border-primary bg-primary text-primary-foreground",
-                    complete && "border-success bg-success text-white",
-                    hasError && "border-destructive bg-destructive text-white",
+                    complete && "border-success bg-success text-primary-foreground",
+                    hasError && "border-destructive bg-destructive text-primary-foreground",
                   )}
                 >
                   {hasError ? "!" : complete ? <Check className="size-3.5" /> : s.id}
@@ -520,6 +521,28 @@ function Stepper({
           );
         })}
       </ol>
+      <div className="flex items-start justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">
+            <span className="text-muted-foreground tabular">Step {step} of {STEPS.length} · </span>
+            {STEPS[step - 1].title}
+          </p>
+          <p className="text-xs text-muted-foreground">{STEPS[step - 1].hint}</p>
+        </div>
+        <div
+          className="mt-1.5 h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted sm:w-40"
+          role="progressbar"
+          aria-label="Booking progress"
+          aria-valuemin={1}
+          aria-valuemax={STEPS.length}
+          aria-valuenow={step}
+        >
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
+            style={{ width: `${(step / STEPS.length) * 100}%` }}
+          />
+        </div>
+      </div>
     </nav>
   );
 }

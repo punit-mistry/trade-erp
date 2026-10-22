@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { ContractPreview } from "../contract-preview";
 import { useTemplateActions } from "./template-actions";
 import { VariablePicker } from "./variable-reference";
+import { useSetPageTitle } from "@/components/layout/page-title";
 
 const ANY_COMPANY = "__any__";
 
@@ -151,6 +152,7 @@ export function TemplateEditor({ templateId }: { templateId?: Id<"contractTempla
   const { can, isLoading } = useViewer();
   const manage = can("contractTemplate.manage");
   const data = useQuery(api.contractTemplates.get, templateId ? { id: templateId } : "skip");
+  useSetPageTitle(templateId ? data?.template.name : undefined);
   const companies = useQuery(api.companies.listActive);
   const create = useMutation(api.contractTemplates.create);
   const update = useMutation(api.contractTemplates.update);
@@ -580,7 +582,7 @@ export function TemplateEditor({ templateId }: { templateId?: Id<"contractTempla
           </TabsContent>
         </Tabs>
 
-        <aside className="space-y-4 lg:sticky lg:top-16 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-[4.5rem] lg:self-start">
           <Section title="Insert variable" description={editable ? "Inserts at the cursor of the last field you clicked." : "Read-only version."}>
             <VariablePicker onInsert={insertVariable} />
           </Section>

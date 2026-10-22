@@ -17,6 +17,7 @@ import { todayIso } from "@/lib/format";
 import { TRADE_STATUS } from "@/lib/status";
 import { fromTrade, type StepId, type TradeFormValues } from "./form";
 import { TradeWizard } from "./trade-wizard";
+import { useSetPageTitle } from "@/components/layout/page-title";
 
 function parseStep(raw: string | null): StepId | undefined {
   const n = Number(raw);
@@ -115,6 +116,7 @@ export function NewTradePage() {
 /** /physical-trades/[id]/edit — resumes a saved draft. */
 export function EditTradePage({ id }: { id: Id<"trades"> }) {
   const data = useQuery(api.trades.get, { id });
+  useSetPageTitle(data?.trade.tradeNumber);
   const params = useSearchParams();
   const router = useRouter();
   // Freeze initial values at first load: live updates (our own autosaves) must not reset the form.

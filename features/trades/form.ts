@@ -9,11 +9,11 @@ export type TradeFormValues = TradeFields;
 export const TRADE_FIELD_KEYS = Object.keys(tradeFieldsV) as (keyof TradeFields)[];
 
 export const STEPS = [
-  { id: 1, key: "basics", title: "Trade Basics", short: "Basics" },
-  { id: 2, key: "quantity", title: "Quantity & Price", short: "Quantity" },
-  { id: 3, key: "terms", title: "Terms & Logistics", short: "Terms" },
-  { id: 4, key: "contract", title: "Contract Information", short: "Contract" },
-  { id: 5, key: "review", title: "Review & Save", short: "Review" },
+  { id: 1, key: "basics", title: "Trade Basics", short: "Basics", hint: "Who are you trading with, and what? Choosing a counterparty fills in their saved terms." },
+  { id: 2, key: "quantity", title: "Quantity & Price", short: "Quantity", hint: "How much, at what price. The total value is calculated for you." },
+  { id: 3, key: "terms", title: "Terms & Logistics", short: "Terms", hint: "Delivery, payment and shipping terms. Supplier defaults are pre-filled — change only what differs." },
+  { id: 4, key: "contract", title: "Contract Information", short: "Contract", hint: "References and clauses printed on the contract. Internal notes are never printed." },
+  { id: 5, key: "review", title: "Review & Save", short: "Review", hint: "Check everything, fix any flagged items, then save, submit or confirm." },
 ] as const;
 
 export type StepId = 1 | 2 | 3 | 4 | 5;

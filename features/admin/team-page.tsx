@@ -111,7 +111,7 @@ export function TeamPage() {
   const pending = (users ?? []).filter((u) => u.status === "pending");
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="Team & Access"
         description="Approve new accounts, assign roles and manage extra permissions. Roles are enforced on the server for every action."

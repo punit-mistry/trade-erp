@@ -8,6 +8,7 @@ import { AccessDenied, PageSkeleton } from "@/components/shared/states";
 import { useViewer } from "@/hooks/use-viewer";
 import { SupplierForm } from "./supplier-form";
 import { fromCounterparty } from "./supplier-schema";
+import { useSetPageTitle } from "@/components/layout/page-title";
 
 export function NewSupplierPage({ cloneFrom }: { cloneFrom?: string }) {
   const { can, isLoading } = useViewer();
@@ -40,6 +41,7 @@ export function NewSupplierPage({ cloneFrom }: { cloneFrom?: string }) {
 export function EditSupplierPage({ id }: { id: Id<"counterparties"> }) {
   const { viewer, can, isLoading } = useViewer();
   const detail = useQuery(api.counterparties.getDetail, { id });
+  useSetPageTitle(detail?.counterparty.name);
 
   if (isLoading || detail === undefined) return <PageSkeleton />;
   const cp = detail.counterparty;

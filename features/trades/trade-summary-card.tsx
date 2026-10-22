@@ -32,7 +32,7 @@ export function TradeSummaryCard() {
   ];
 
   return (
-    <aside className="rounded-lg border bg-card shadow-xs lg:sticky lg:top-16" aria-label="Trade summary">
+    <aside className="rounded-lg border bg-card shadow-xs lg:sticky lg:top-[4.5rem]" aria-label="Trade summary">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -43,7 +43,14 @@ export function TradeSummaryCard() {
           <div className="text-xs font-medium text-muted-foreground">
             Trade summary{meta.tradeNumber ? ` · ${meta.tradeNumber}` : " · not saved yet"}
           </div>
-          <div className="mt-0.5 text-lg font-semibold tracking-tight tabular">{value === undefined ? "—" : formatMoney(value, values.currency)}</div>
+          <div className="mt-0.5 text-xl font-semibold tracking-tight tabular">{value === undefined ? "—" : formatMoney(value, values.currency)}</div>
+          <div className="text-[11px] text-muted-foreground">
+            {meta.valueOverridden
+              ? "Authorised value override"
+              : meta.priceNeedsValidation
+                ? "Historical total · unit price needs validation"
+                : "Quantity × price per unit"}
+          </div>
         </div>
         <ChevronDown className={cn("size-4 text-muted-foreground transition-transform lg:hidden", open && "rotate-180")} />
       </button>
