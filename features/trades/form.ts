@@ -19,6 +19,8 @@ export const STEPS = [
 export type StepId = 1 | 2 | 3 | 4 | 5;
 
 const optionalText = (max: number) => z.string().max(max, `Maximum ${max} characters.`).optional();
+const wholeNumber = (min: number, max: number) =>
+  z.number().int("Whole numbers only.").min(min, `Minimum ${min}.`).max(max, `Maximum ${max}.`);
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date.")
@@ -37,6 +39,7 @@ export const tradeFormSchema = z.object({
   commodityId: z.string().optional(),
   tradeDate: isoDate,
   sourceReference: optionalText(120),
+  purchaseTradeId: z.string().optional(),
   quantity: z
     .number()
     .positive("Quantity must be greater than zero.")
@@ -65,6 +68,32 @@ export const tradeFormSchema = z.object({
   freightTerms: optionalText(120),
   specialConditions: optionalText(5000),
   internalNotes: optionalText(5000),
+  consignee: optionalText(1000),
+  notifyParty: optionalText(1000),
+  alsoNotifyParty: optionalText(1000),
+  salesBasis: z.enum(["lc", "non_lc"]).optional(),
+  lcNumber: optionalText(120),
+  placeOfReceipt: optionalText(160),
+  placeOfDelivery: optionalText(160),
+  freightPayableAt: optionalText(160),
+  freightPayableBy: optionalText(160),
+  packageType: optionalText(30),
+  palletType: optionalText(80),
+  originalBlCount: wholeNumber(0, 10).optional(),
+  containerCount: wholeNumber(1, 999).optional(),
+  containerType: optionalText(20),
+  packagesPerContainer: wholeNumber(1, 100000).optional(),
+  packageNetKg: z
+    .number()
+    .positive("Must be greater than zero.")
+    .refine((n) => decimalsOf(n) <= 3, "Up to 3 decimal places.")
+    .optional(),
+  palletsPerContainer: wholeNumber(0, 10000).optional(),
+  packingKgPerContainer: z
+    .number()
+    .nonnegative("Cannot be negative.")
+    .refine((n) => decimalsOf(n) <= 3, "Up to 3 decimal places.")
+    .optional(),
   buyerReference: optionalText(120),
   buyerReferenceDate: isoDate,
   printedContractNumber: optionalText(60),
@@ -87,6 +116,7 @@ export const FIELD_STEP: Partial<Record<keyof TradeFields | "totalValue", StepId
   commodityId: 1,
   tradeDate: 1,
   sourceReference: 1,
+  purchaseTradeId: 1,
   quantity: 2,
   uom: 2,
   priceType: 2,
@@ -108,6 +138,24 @@ export const FIELD_STEP: Partial<Record<keyof TradeFields | "totalValue", StepId
   freightTerms: 3,
   specialConditions: 3,
   internalNotes: 3,
+  consignee: 3,
+  notifyParty: 3,
+  alsoNotifyParty: 3,
+  salesBasis: 3,
+  lcNumber: 3,
+  placeOfReceipt: 3,
+  placeOfDelivery: 3,
+  freightPayableAt: 3,
+  freightPayableBy: 3,
+  packageType: 3,
+  palletType: 3,
+  originalBlCount: 3,
+  containerCount: 3,
+  containerType: 3,
+  packagesPerContainer: 3,
+  packageNetKg: 3,
+  palletsPerContainer: 3,
+  packingKgPerContainer: 3,
   buyerReference: 4,
   buyerReferenceDate: 4,
   printedContractNumber: 4,

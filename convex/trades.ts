@@ -29,6 +29,8 @@ const RECORD_SPECIFIC_FIELDS: (keyof TradeFields)[] = [
   "buyerReferenceDate",
   "sourceReference",
   "internalNotes",
+  "lcNumber", // every LC is opened for one specific sale
+  "purchaseTradeId", // a clone is a new sale; link it to its own purchase
 ];
 
 const tradeFieldsArg = v.object(tradeFieldsV);
@@ -309,6 +311,70 @@ export const get = query({
   },
 });
 
+type LinkedTradeSummary = {
+  _id: Id<"trades">;
+  tradeNumber: string;
+  status: Doc<"trades">["status"];
+  tradeDate?: string;
+  counterpartyName?: string;
+  commodityName?: string;
+  manufacturer?: string;
+  quantity?: number;
+  uom?: string;
+};
+
+const linkedSummary = (t: Doc<"trades">): LinkedTradeSummary => ({
+  _id: t._id,
+  tradeNumber: t.tradeNumber,
+  status: t.status,
+  tradeDate: t.tradeDate,
+  counterpartyName: t.counterpartyName,
+  commodityName: t.commodityName,
+  manufacturer: t.manufacturer,
+  quantity: t.quantity,
+  uom: t.uom,
+});
+
+/** Purchase trades a sale can be linked to (newest first, cancelled excluded). */
+export const purchaseOptions = query({
+  args: {},
+  handler: async (ctx): Promise<LinkedTradeSummary[]> => {
+    await requireViewer(ctx);
+    const rows = await ctx.db
+      .query("trades")
+      .withIndex("by_direction_and_date", (q) => q.eq("direction", "purchase"))
+      .order("desc")
+      .take(300);
+    return rows.filter((t) => t.status !== "cancelled").map(linkedSummary);
+  },
+});
+
+/** The purchase a sale is linked to, or the sales linked to a purchase. */
+export const links = query({
+  args: { id: v.id("trades") },
+  handler: async (ctx, { id }) => {
+    await requireViewer(ctx);
+    const trade = await getOrThrow(ctx, id, "Trade");
+    const purchase = trade.purchaseTradeId ? await ctx.db.get(trade.purchaseTradeId) : null;
+    const sales =
+      trade.direction === "purchase"
+        ? (
+            await ctx.db
+              .query("trades")
+              .withIndex("by_purchaseTrade", (q) => q.eq("purchaseTradeId", id))
+              .take(100)
+          ).filter((t) => t.status !== "cancelled")
+        : [];
+    const linkedQuantity = sales.reduce((sum, s) => sum + (s.uom === trade.uom ? (s.quantity ?? 0) : 0), 0);
+    return {
+      purchase: purchase ? linkedSummary(purchase) : null,
+      sales: sales.map(linkedSummary),
+      // Only sales in the same unit are summed; others are listed but not added.
+      linkedQuantity,
+    };
+  },
+});
+
 /** Editable fields of a trade for "Clone Trade" — record-specific fields removed. */
 export const getCloneSource = query({
   args: { id: v.id("trades") },
@@ -370,11 +436,21 @@ async function resolveDenorm(ctx: MutationCtx, f: TradeFields) {
   if (f.contractTemplateId && !(await ctx.db.get(f.contractTemplateId))) {
     throw appError("INVALID", "Selected contract template no longer exists.");
   }
+  let purchaseTradeNumber: string | undefined;
+  if (f.purchaseTradeId) {
+    if (f.direction !== "sales") throw appError("INVALID", "Only a sales trade can be linked to a back-to-back purchase.");
+    const purchase = await ctx.db.get(f.purchaseTradeId);
+    if (!purchase) throw appError("INVALID", "The linked purchase trade no longer exists.");
+    if (purchase.direction !== "purchase") throw appError("INVALID", `${purchase.tradeNumber} is not a purchase trade.`);
+    if (purchase.status === "cancelled") throw appError("INVALID", `${purchase.tradeNumber} is cancelled and cannot be linked.`);
+    purchaseTradeNumber = purchase.tradeNumber;
+  }
   return {
     companyName: company?.name,
     counterpartyName: counterparty?.name,
     commodityName: commodity?.name,
     commodityCode: commodity?.code,
+    purchaseTradeNumber,
   };
 }
 
@@ -496,6 +572,7 @@ export const saveDraft = mutation({
       "counterpartyName",
       "commodityName",
       "commodityCode",
+      "purchaseTradeNumber",
     ]);
     if (changes.length === 0) return { changed: false };
 

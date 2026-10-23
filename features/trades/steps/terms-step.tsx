@@ -11,6 +11,7 @@ import { NumberInput } from "@/components/shared/form-field";
 import { CountryCombobox, LookupCombobox } from "@/components/shared/lookup-combobox";
 import { cn } from "@/lib/utils";
 import { useWizard } from "../wizard-context";
+import { ShipmentSection } from "./shipment-section";
 import { StepHeading, WizardField } from "./wizard-field";
 
 const TOLERANCE_OPTIONS = [
@@ -157,6 +158,8 @@ export function TermsStep() {
             />
           </WizardField>
         </div>
+
+        <ShipmentSection />
 
         <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="rounded-lg border">
           <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/50">

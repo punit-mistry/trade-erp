@@ -213,6 +213,7 @@ export default defineSchema({
     commodityName: v.optional(v.string()),
     commodityCode: v.optional(v.string()),
     companyName: v.optional(v.string()),
+    purchaseTradeNumber: v.optional(v.string()),
     searchText: v.string(),
     // lineage
     clonedFromId: v.optional(v.id("trades")),
@@ -244,6 +245,7 @@ export default defineSchema({
     .index("by_company", ["companyId"])
     .index("by_createdBy", ["createdBy"])
     .index("by_status_and_closedAt", ["status", "closedAt"])
+    .index("by_purchaseTrade", ["purchaseTradeId"])
     .searchIndex("search", {
       searchField: "searchText",
       filterFields: ["status", "direction"],
@@ -359,6 +361,7 @@ export default defineSchema({
     consignee: v.optional(v.string()),
     notifyParty: v.optional(v.string()),
     notifyInstructions: v.optional(v.string()),
+    alsoNotifyParty: v.optional(v.string()),
     buyerDetails: v.optional(v.string()),
     sellerDetails: v.optional(v.string()),
     // shipment
@@ -383,6 +386,8 @@ export default defineSchema({
     containerNumbers: v.array(v.string()),
     sealNumbers: v.array(v.string()),
     freightTerms: v.optional(v.string()),
+    freightPayableAt: v.optional(v.string()),
+    freightPayableBy: v.optional(v.string()),
     originalsCount: v.optional(v.number()),
     specialClauses: v.optional(v.string()),
     instructions: v.optional(v.string()),

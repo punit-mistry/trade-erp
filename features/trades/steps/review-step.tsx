@@ -9,6 +9,7 @@ import { computeTradeValue, formatDate, formatMoney, formatNumber, formatPrice, 
 import { DIRECTION_LABEL } from "@/lib/status";
 import type { StepId } from "../form";
 import { STEPS } from "../form";
+import { shipmentDetailItems } from "../shipment-details";
 import { useTradeLabels } from "../use-trade-labels";
 import { useWizard } from "../wizard-context";
 import { StepHeading } from "./wizard-field";
@@ -136,6 +137,9 @@ export function ReviewStep() {
               <p className="whitespace-pre-line">{v.internalNotes}</p>
             </div>
           )}
+        </ReviewBlock>
+        <ReviewBlock title="Shipment instructions" step={3}>
+          <DetailList items={shipmentDetailItems(v)} />
         </ReviewBlock>
         <ReviewBlock title="Contract terms" step={4}>
           <DetailList

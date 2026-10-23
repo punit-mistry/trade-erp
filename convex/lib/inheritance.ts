@@ -4,10 +4,13 @@
  * template is chosen. Inherited values are suggestions copied INTO the trade;
  * later changes to the supplier never touch existing trades.
  */
+import { partyText } from "./blDraft";
 import { bankBlock } from "./templateEngine";
 import type { Direction, TradeFields } from "./validators";
 
-type CounterpartyDefaults = {
+type Address = { address?: string; city?: string; state?: string; postalCode?: string; country?: string };
+
+type CounterpartyDefaults = Address & {
   defaultCurrency?: string;
   defaultPaymentTerm?: string;
   defaultIncoterm?: string;
@@ -26,7 +29,7 @@ type CounterpartyDefaults = {
   bankInstructions?: string;
 };
 
-type CompanyDefaults = {
+type CompanyDefaults = Address & {
   baseCurrency?: string;
   name?: string;
   bankName?: string;
@@ -60,7 +63,12 @@ export function defaultsFromCounterparty(cp: CounterpartyDefaults, direction: Di
     freightTerms: cp.defaultFreightTerms,
   };
   if (direction === "purchase") out.sellerBankDetails = bank;
-  if (direction === "sales") out.buyerBankDetails = bank;
+  if (direction === "sales") {
+    out.buyerBankDetails = bank;
+    // Non-LC default: the buyer is consignee and notify party (an LC may change both).
+    out.consignee = partyText(cp);
+    out.notifyParty = partyText(cp);
+  }
   return stripUndefined(out);
 }
 
@@ -68,7 +76,13 @@ export function defaultsFromCounterparty(cp: CounterpartyDefaults, direction: Di
 export function defaultsFromCompany(company: CompanyDefaults, direction: Direction | undefined): Partial<TradeFields> {
   const bank = bankBlock(company) || undefined;
   const out: Partial<TradeFields> = {};
-  if (direction === "sales") out.sellerBankDetails = bank;
+  if (direction === "sales") {
+    out.sellerBankDetails = bank;
+    // We are always "also notified" on our own sales B/Ls.
+    out.alsoNotifyParty = partyText(company);
+    // Per the SI: freight is payable by us on our sales (changeable for collect shipments).
+    out.freightPayableBy = company.name;
+  }
   if (direction === "purchase") out.buyerBankDetails = bank;
   return stripUndefined(out);
 }

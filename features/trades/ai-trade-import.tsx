@@ -33,6 +33,21 @@ const LABELS: Record<Field, string> = {
   packing: "Packing",
   buyerReference: "Buyer reference / PO",
   notes: "Other details (added to internal notes)",
+  consignee: "Consignee",
+  notifyParty: "Notify party",
+  lcNumber: "LC number",
+  placeOfReceipt: "Place of receipt",
+  placeOfDelivery: "Place of delivery",
+  containerCount: "Number of containers",
+  containerType: "Container type",
+  packagesPerContainer: "Packages per container",
+  packageNetKg: "Net kg per package",
+  palletsPerContainer: "Pallets per container",
+  freightTerms: "Freight terms",
+  originalBlCount: "Original B/Ls",
+  packageType: "Package type",
+  palletType: "Pallet type",
+  freightPayableBy: "Freight payable by",
 };
 
 /** Plain extraction fields that map 1:1 (or renamed) onto trade form fields. */
@@ -46,10 +61,30 @@ const TARGET: Partial<Record<Field, keyof TradeFields>> = {
   origin: "origin",
   packing: "packingClause",
   buyerReference: "buyerReference",
+  consignee: "consignee",
+  notifyParty: "notifyParty",
+  lcNumber: "lcNumber",
+  placeOfReceipt: "placeOfReceipt",
+  placeOfDelivery: "placeOfDelivery",
+  containerCount: "containerCount",
+  containerType: "containerType",
+  packagesPerContainer: "packagesPerContainer",
+  packageNetKg: "packageNetKg",
+  palletsPerContainer: "palletsPerContainer",
+  originalBlCount: "originalBlCount",
+  packageType: "packageType",
+  palletType: "palletType",
+  freightPayableBy: "freightPayableBy",
 };
 
 /** Fields backed by a fixed reference list — only values on that list can be applied. */
-const LOOKUP: Partial<Record<Field, "uom" | "currency" | "incoterm">> = { uom: "uom", currency: "currency", incoterm: "incoterm" };
+type LookupKindUsed = "uom" | "currency" | "incoterm" | "freightTerm";
+const LOOKUP: Partial<Record<Field, { kind: LookupKindUsed; field: keyof TradeFields }>> = {
+  uom: { kind: "uom", field: "uom" },
+  currency: { kind: "currency", field: "currency" },
+  incoterm: { kind: "incoterm", field: "incoterm" },
+  freightTerms: { kind: "freightTerm", field: "freightTerms" },
+};
 
 type LookupOption = { value: string; label: string };
 
@@ -63,6 +98,18 @@ function matchLookup(options: LookupOption[] | undefined, raw: string): LookupOp
     options.find((o) => norm(o.value) === wanted || norm(o.label) === wanted) ??
     options.find((o) => norm(o.value) === first || norm(o.label) === first)
   );
+}
+
+/** Port fields accept free text, but prefer the reference-list spelling ("Callao" → "Callao, Peru"). */
+const PORT_FIELDS = new Set<Field>(["loadingLocation", "dischargeLocation", "placeOfReceipt", "placeOfDelivery"]);
+
+function matchPort(options: LookupOption[] | undefined, raw: string): string | undefined {
+  if (!options) return undefined;
+  const wanted = raw.trim().toLowerCase();
+  return options.find((o) => {
+    const v = o.value.toLowerCase();
+    return v === wanted || v.startsWith(`${wanted},`) || v.split(",")[0].trim() === wanted;
+  })?.value;
 }
 
 const pct = (score: number) => `${Math.round(score * 100)}% match`;
@@ -79,7 +126,10 @@ export function AiTradeImport() {
     uom: useQuery(api.lookups.list, open ? { kind: "uom" } : "skip"),
     currency: useQuery(api.lookups.list, open ? { kind: "currency" } : "skip"),
     incoterm: useQuery(api.lookups.list, open ? { kind: "incoterm" } : "skip"),
+    freightTerm: useQuery(api.lookups.list, open ? { kind: "freightTerm" } : "skip"),
   };
+  const ports = useQuery(api.lookups.list, open ? { kind: "port" } : "skip");
+  const portValue = (raw: string) => matchPort(ports ?? undefined, raw) ?? raw;
 
   const locked = meta.status !== undefined && meta.status !== "draft";
   // Hidden when it could never work for this user; shown-but-disabled when AI is merely off.
@@ -115,16 +165,19 @@ export function AiTradeImport() {
           current: currentText(key === "counterpartyName" ? "counterpartyId" : "commodityId") ? "the one already selected" : undefined,
         });
       } else if (LOOKUP[key]) {
-        const kind = LOOKUP[key]!;
+        const { kind, field } = LOOKUP[key]!;
         const hit = matchLookup(lookups[kind] ?? undefined, found);
         rows.push({
           ...base,
           found: hit && hit.value !== found ? `${found} → ${hit.label}` : found,
           blockedReason: hit ? undefined : `“${found}” isn't in your ${LABELS[key].toLowerCase()} list (Companies & Masters → Reference lists).`,
-          current: currentText(kind),
+          current: currentText(field),
         });
       } else if (key === "notes") {
         rows.push(base);
+      } else if (PORT_FIELDS.has(key)) {
+        const port = portValue(found);
+        rows.push({ ...base, found: port !== found ? `${found} → ${port}` : found, current: currentText(TARGET[key]!) });
       } else {
         rows.push({ ...base, current: currentText(TARGET[key]!) });
       }
@@ -159,17 +212,21 @@ export function AiTradeImport() {
     for (const key of Object.keys(LOOKUP) as Field[]) {
       const s = last.fields[key];
       if (!picked(key) || !s) continue;
-      const kind = LOOKUP[key]!;
+      const { kind, field } = LOOKUP[key]!;
       const hit = matchLookup(lookups[kind] ?? undefined, String(s.value));
       if (!hit) continue;
-      setField(kind, hit.value);
+      setField(field, hit.value as never);
       count++;
     }
     for (const [key, target] of Object.entries(TARGET) as [Field, keyof TradeFields][]) {
       const s = last.fields[key];
       if (!picked(key) || !s) continue;
-      setField(target, s.value as never);
+      setField(target, (PORT_FIELDS.has(key) ? portValue(String(s.value)) : s.value) as never);
       count++;
+    }
+    // An LC number on a sale means the sale is under a letter of credit.
+    if (picked("lcNumber") && form.getValues("direction") === "sales" && form.getValues("salesBasis") !== "lc") {
+      setField("salesBasis", "lc");
     }
     if (picked("notes") && last.fields.notes) {
       const prev = form.getValues("internalNotes");

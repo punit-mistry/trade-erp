@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { CommodityPicker, CompanySelect, CounterpartyPicker } from "../pickers";
+import { PurchaseLinkField } from "../purchase-link-field";
 import { useWizard } from "../wizard-context";
 import { StepHeading, WizardField } from "./wizard-field";
 
@@ -178,6 +179,8 @@ export function BasicsStep() {
             )}
           />
         </WizardField>
+
+        <PurchaseLinkField />
 
         <WizardField
           name="sourceReference"

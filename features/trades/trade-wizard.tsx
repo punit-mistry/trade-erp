@@ -50,7 +50,8 @@ for (const [field, step] of Object.entries(FIELD_STEP)) {
   if (field !== "totalValue" && step) STEP_FIELDS[step].push(field as keyof TradeFields);
 }
 
-const BANK_FIELDS: (keyof TradeFields)[] = ["sellerBankDetails", "buyerBankDetails"];
+/** Inherited values that depend on which side we play — re-derived when the direction changes. */
+const DIRECTION_FIELDS: (keyof TradeFields)[] = ["sellerBankDetails", "buyerBankDetails", "consignee", "notifyParty", "alsoNotifyParty", "freightPayableBy"];
 
 export type TradeWizardProps = {
   initialValues: TradeFormValues;
@@ -244,9 +245,14 @@ export function TradeWizard(props: TradeWizardProps) {
         toast.error(getErrorMessage(e, "Could not load template clauses."));
       }
     },
-    onDirectionChanged: async () => {
-      // Bank details depend on which side we play — re-derive inherited ones.
-      clearInherited((f) => BANK_FIELDS.includes(f));
+    onDirectionChanged: async (direction) => {
+      // Bank details and B/L parties depend on which side we play — re-derive inherited ones.
+      clearInherited((f) => DIRECTION_FIELDS.includes(f));
+      // Only sales are linked to a back-to-back purchase, and only sales have a sales basis.
+      if (direction !== "sales") {
+        if (form.getValues("purchaseTradeId")) form.setValue("purchaseTradeId", undefined, { shouldDirty: true });
+        if (form.getValues("salesBasis")) form.setValue("salesBasis", undefined, { shouldDirty: true });
+      }
       const { counterpartyId, companyId } = form.getValues();
       if (counterpartyId) await applyCounterparty(counterpartyId, false);
       if (companyId) await applyCompany(companyId);

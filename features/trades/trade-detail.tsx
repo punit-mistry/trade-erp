@@ -30,6 +30,8 @@ import { TradeBlTab } from "@/features/bl/trade-bl-tab";
 import { TradeContractTab } from "@/features/contracts/trade-contract-tab";
 import { TradeDocumentsTab } from "@/features/documents/trade-documents-tab";
 import { AiTradeSummary } from "./ai-trade-summary";
+import { shipmentDetailItems } from "./shipment-details";
+import { TradeLinks } from "./trade-links";
 import { DirectionPill } from "./direction-pill";
 import { CloneTradeDialog, CreateTemplateDialog, TradeStatusActions } from "./trade-actions";
 import { ValueOverrideDialog } from "./value-override-dialog";
@@ -328,6 +330,7 @@ function OverviewTab({ data, blockingMessages, warnings }: { data: TradeData; bl
             )}
           </ol>
         </Section>
+        <TradeLinks trade={trade} />
         <AiTradeSummary tradeId={trade._id} />
         {trade.internalNotes && (
           <Section
@@ -410,6 +413,9 @@ function TermsTab({ trade }: { trade: Doc<"trades"> }) {
             { label: "Special conditions", value: trade.specialConditions, span: 3 },
           ]}
         />
+      </Section>
+      <Section title="Shipment instructions" description="B/L parties, LC, places, containers and packing agreed in the contract.">
+        <DetailList items={shipmentDetailItems(trade)} />
       </Section>
       <Section title="Contract information">
         <DetailList

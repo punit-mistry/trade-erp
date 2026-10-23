@@ -8,6 +8,7 @@
  * `[[missing: name]]` so a reviewer notices before issuing.
  */
 import { amountInWords, formatDate, formatMoney, formatNumber, formatPrice, formatQuantity } from "./format";
+import { containersText, packagesLabel, packingBreakdown, SALES_BASIS_LABEL } from "./shipment";
 
 export type TemplateVariable = { name: string; label: string; description: string; sample: string };
 
@@ -61,6 +62,25 @@ export const TEMPLATE_VARIABLES: TemplateVariable[] = [
   { name: "specialConditions", label: "Special conditions", description: "Trade special conditions.", sample: "Quality certificate by SGS." },
   { name: "otherConditions", label: "Other conditions", description: "Other contract conditions.", sample: "All other terms as per GAFTA." },
   { name: "additionalTerms", label: "Additional terms", description: "Additional contract-specific terms.", sample: "—" },
+  { name: "salesBasis", label: "Sales basis", description: "Letter of credit (LC) or Non-LC.", sample: "Letter of credit (LC)" },
+  { name: "lcNumber", label: "LC number", description: "Letter of credit number (LC sales).", sample: "LC/2026/00451" },
+  { name: "consignee", label: "Consignee", description: "Consignee as it must appear on the B/L.", sample: "Conte Group S.A.C., Lima, Peru" },
+  { name: "notifyParty", label: "Notify party", description: "Notify party for the B/L.", sample: "Conte Group S.A.C., Lima, Peru" },
+  { name: "alsoNotifyParty", label: "Also notify", description: "Second notify party for the B/L.", sample: "Sai Commodities Ltd, Croydon, UK" },
+  { name: "placeOfReceipt", label: "Place of receipt", description: "Place where the carrier receives the goods.", sample: "Abidjan" },
+  { name: "placeOfDelivery", label: "Place of delivery", description: "Final place of delivery (only if different from discharge).", sample: "Lima" },
+  { name: "freightPayableAt", label: "Freight payable at", description: "Place where freight is paid.", sample: "London" },
+  { name: "freightPayableBy", label: "Freight payable by", description: "Party that pays the freight.", sample: "Sai Commodities Ltd" },
+  { name: "packageType", label: "Package type", description: "Bales / bags / cartons …", sample: "BALES" },
+  { name: "palletType", label: "Pallet type", description: "Pallet description.", sample: "SHRINK WRAPPED PLASTIC PALLET BASE" },
+  { name: "originalBls", label: "Original B/Ls", description: "Number of original bills of lading.", sample: "3" },
+  { name: "containers", label: "Containers", description: "Number and type of containers.", sample: "5 x 20' ST" },
+  { name: "packagesPerContainer", label: "Packages per container", description: "Bales / bags / pieces per container.", sample: "576" },
+  { name: "totalPackages", label: "Total packages", description: "Containers x packages per container.", sample: "2,880" },
+  { name: "packageNetKg", label: "Net kg per package", description: "Net weight of one package.", sample: "35" },
+  { name: "palletsPerContainer", label: "Pallets per container", description: "Pallets per container.", sample: "16" },
+  { name: "netWeight", label: "Net weight", description: "Total net weight from the packing breakdown.", sample: "100,800 kg" },
+  { name: "grossWeight", label: "Gross weight", description: "Total gross weight from the packing breakdown.", sample: "103,600 kg" },
   { name: "today", label: "Generation date", description: "Date the document is generated.", sample: "22 Oct 2026" },
 ];
 
@@ -68,6 +88,25 @@ export const KNOWN_VARIABLES = new Set(TEMPLATE_VARIABLES.map((v) => v.name));
 
 /** Variables whose absence is acceptable (rendered as "—" without a missing marker). */
 const OPTIONAL_VARIABLES = new Set([
+  "salesBasis",
+  "lcNumber",
+  "consignee",
+  "notifyParty",
+  "alsoNotifyParty",
+  "placeOfReceipt",
+  "placeOfDelivery",
+  "freightPayableAt",
+  "freightPayableBy",
+  "packageType",
+  "palletType",
+  "originalBls",
+  "containers",
+  "packagesPerContainer",
+  "totalPackages",
+  "packageNetKg",
+  "palletsPerContainer",
+  "netWeight",
+  "grossWeight",
   "buyerReference",
   "buyerReferenceDate",
   "hsCode",
@@ -229,6 +268,24 @@ export type ContractVariableInput = {
     specialConditions?: string;
     otherConditions?: string;
     additionalTerms?: string;
+    consignee?: string;
+    notifyParty?: string;
+    alsoNotifyParty?: string;
+    salesBasis?: "lc" | "non_lc";
+    lcNumber?: string;
+    placeOfReceipt?: string;
+    placeOfDelivery?: string;
+    freightPayableAt?: string;
+    freightPayableBy?: string;
+    packageType?: string;
+    palletType?: string;
+    originalBlCount?: number;
+    containerCount?: number;
+    containerType?: string;
+    packagesPerContainer?: number;
+    packageNetKg?: number;
+    palletsPerContainer?: number;
+    packingKgPerContainer?: number;
     // NOTE: internalNotes is intentionally not part of this type.
   };
   company: (PartyLike & { signatoryName?: string; signatoryTitle?: string }) | null;
@@ -255,6 +312,8 @@ export function buildContractVariables(input: ContractVariableInput): Record<str
       : "";
   const companyAddr = partyAddress(company);
   const cpAddr = partyAddress(counterparty);
+  const packing = packingBreakdown(trade);
+  const num = (value: number | undefined, decimals = 0) => (value === undefined ? "" : formatNumber(value, decimals));
   return {
     contractNumber: input.contractNumber,
     contractVersion: String(input.contractVersion),
@@ -308,6 +367,25 @@ export function buildContractVariables(input: ContractVariableInput): Record<str
     specialConditions: trade.specialConditions ?? "",
     otherConditions: trade.otherConditions ?? "",
     additionalTerms: trade.additionalTerms ?? "",
+    salesBasis: trade.salesBasis ? SALES_BASIS_LABEL[trade.salesBasis] : "",
+    lcNumber: trade.lcNumber ?? "",
+    consignee: trade.consignee ?? "",
+    notifyParty: trade.notifyParty ?? "",
+    alsoNotifyParty: trade.alsoNotifyParty ?? "",
+    placeOfReceipt: trade.placeOfReceipt ?? "",
+    placeOfDelivery: trade.placeOfDelivery ?? "",
+    freightPayableAt: trade.freightPayableAt ?? "",
+    freightPayableBy: trade.freightPayableBy ?? "",
+    packageType: trade.packageType?.toUpperCase() ?? "",
+    palletType: trade.palletType ?? "",
+    originalBls: num(trade.originalBlCount),
+    containers: containersText(trade),
+    packagesPerContainer: num(trade.packagesPerContainer),
+    totalPackages: packing.totalPackages === undefined ? "" : packagesLabel(packing.totalPackages, trade.packageType, (n) => formatNumber(n)),
+    packageNetKg: num(trade.packageNetKg, 3),
+    palletsPerContainer: num(trade.palletsPerContainer),
+    netWeight: packing.totalNetKg === undefined ? "" : `${formatNumber(packing.totalNetKg, 3)} kg`,
+    grossWeight: packing.totalGrossKg === undefined ? "" : `${formatNumber(packing.totalGrossKg, 3)} kg`,
     today: formatDate(input.today ?? Date.now(), input.dateFormat),
   };
 }

@@ -333,6 +333,21 @@ function cleanNumber(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** "20ft GP" / "40 HQ" / "20' reefer" → "20' ST" / "40' HC" / "20' RF"; undefined if no 20/40/45 size. */
+export function normaliseContainerType(raw: string): string | undefined {
+  const s = raw.toUpperCase();
+  const size = s.match(/(?:^|[^\d])(20|40|45)(?!\d)/)?.[1];
+  if (!size) return undefined;
+  const type = /\b(HC|HQ|HIGH\s*CUBE)\b/.test(s)
+    ? "HC"
+    : /\b(RF|RH|REEFER)\b/.test(s)
+      ? "RF"
+      : /\b(OT|OPEN\s*TOP)\b/.test(s)
+        ? "OT"
+        : "ST";
+  return `${size}' ${type}`;
+}
+
 export const TRADE_EXTRACT_FIELDS = [
   "direction",
   "counterpartyName",
@@ -350,6 +365,22 @@ export const TRADE_EXTRACT_FIELDS = [
   "packing",
   "buyerReference",
   "notes",
+  // Shipment instructions (Field Master F02–F27)
+  "consignee",
+  "notifyParty",
+  "lcNumber",
+  "placeOfReceipt",
+  "placeOfDelivery",
+  "containerCount",
+  "containerType",
+  "packagesPerContainer",
+  "packageNetKg",
+  "palletsPerContainer",
+  "freightTerms",
+  "originalBlCount",
+  "packageType",
+  "palletType",
+  "freightPayableBy",
 ] as const;
 export type TradeExtractField = (typeof TRADE_EXTRACT_FIELDS)[number];
 
@@ -407,6 +438,56 @@ export function normaliseTradeExtraction(raw: unknown): TradeExtraction {
       case "notes":
         if (cleanText(f.value, 1000)) set(cleanText(f.value, 1000)!);
         break;
+      case "containerCount":
+      case "packagesPerContainer":
+      case "palletsPerContainer":
+      case "originalBlCount": {
+        const n = cleanNumber(f.value);
+        const max = key === "originalBlCount" ? 10 : key === "containerCount" ? 999 : 100000;
+        if (n !== undefined && Number.isInteger(n) && n >= 1 && n <= max) set(n);
+        else out.dropped.push(key);
+        break;
+      }
+      case "packageNetKg": {
+        const n = cleanNumber(f.value);
+        if (n !== undefined && n > 0 && n < 100000) set(Math.round(n * 1000) / 1000);
+        else out.dropped.push(key);
+        break;
+      }
+      case "containerType": {
+        const t = normaliseContainerType(String(f.value));
+        if (t) set(t);
+        else out.dropped.push(key);
+        break;
+      }
+      case "freightTerms": {
+        const v = cleanText(f.value, 60);
+        if (v && /prepaid/i.test(v)) set("Freight Prepaid");
+        else if (v && /collect/i.test(v)) set("Freight Collect");
+        else if (v) set(v);
+        else out.dropped.push(key);
+        break;
+      }
+      case "packageType": {
+        const v = cleanText(f.value, 30)?.toUpperCase();
+        const map: Record<string, string> = { BALE: "BALES", BAG: "BAGS", CARTON: "CARTONS", DRUM: "DRUMS", PIECE: "PIECES", PCS: "PIECES", BUNDLE: "BUNDLES", PALLET: "PALLETS" };
+        if (v) set(map[v] ?? v);
+        else out.dropped.push(key);
+        break;
+      }
+      case "palletType": {
+        const v = cleanText(f.value, 80)?.toUpperCase();
+        if (v) set(v);
+        else out.dropped.push(key);
+        break;
+      }
+      case "consignee":
+      case "notifyParty": {
+        const v = cleanText(f.value, 500);
+        if (v) set(v);
+        else out.dropped.push(key);
+        break;
+      }
       default: {
         const s = cleanText(f.value, 200);
         if (s) set(s);
@@ -526,6 +607,19 @@ export const AI_SAFE_TRADE_FIELDS = [
   "buyerReference",
   "printedContractNumber",
   "clonedFromNumber",
+  // Shipment instructions without party names/addresses.
+  "salesBasis",
+  "placeOfReceipt",
+  "placeOfDelivery",
+  "originalBlCount",
+  "containerCount",
+  "containerType",
+  "packagesPerContainer",
+  "packageNetKg",
+  "palletsPerContainer",
+  "packingKgPerContainer",
+  "packageType",
+  "palletType",
 ] as const;
 
 export function safeTradeFacts(trade: Record<string, unknown>): Record<string, unknown> {
@@ -635,6 +729,14 @@ Allowed fields: ${TRADE_EXTRACT_FIELDS.join(", ")}.
 - incoterm: e.g. FOB, CIF, CFR, EXW. paymentTerm: e.g. "D/P at Sight", "LC 60 days".
 - shipmentPeriod: as written (e.g. "October 2026"). Locations as written.
 - buyerReference: PO / reference number if present. notes: anything else commercially important, one short sentence.
+- consignee: the full text after a "Consignee" label (e.g. "TO THE ORDER OF <bank>"), including any address. ALWAYS include it when such a line exists.
+- notifyParty: the full text after a "Notify" / "Notify party" label, including the address. ALWAYS include it when such a line exists.
+- lcNumber: letter of credit number if stated. placeOfReceipt / placeOfDelivery: only if stated separately from the ports.
+- containerCount: number of containers (integer); containerType: size and type as written (e.g. "20ft", "40 HC").
+- packagesPerContainer: bales/bags/pieces per container (integer); packageNetKg: net kg of ONE package (e.g. bales of 35 kg → 35).
+- palletsPerContainer: integer. freightTerms: "prepaid" or "collect". originalBlCount: number of original B/Ls (e.g. "3/3 OBL" → 3).
+- packageType: the package word as written (e.g. "bales", "bags"). palletType: pallet wording as written (e.g. "shrink wrapped plastic pallet base").
+- freightPayableBy: the party paying the freight, only if stated (e.g. "freight payable by X").
 Only include fields that are explicitly stated. Never guess or calculate missing values. Confidence: 0.9+ when stated verbatim, lower when inferred.`;
 
 export const SUPPLIER_EXTRACT_PROMPT = `You extract company details from a pasted email signature, letterhead or business card text.

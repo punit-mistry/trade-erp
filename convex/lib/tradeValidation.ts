@@ -3,7 +3,9 @@
  * per step, and the server enforces it on submit/confirm. Drafts may be
  * incomplete; nothing incomplete can be submitted or confirmed.
  */
+import { formatNumber } from "./format";
 import { computeTradeValue, valueDiscrepancy } from "./money";
+import { packingBreakdown, quantityInMt } from "./shipment";
 import type { TradeFields } from "./validators";
 
 export type TradeIssue = {
@@ -75,6 +77,44 @@ export function validateTrade(trade: TradeForValidation): TradeIssue[] {
       message: trade.valueOverridden
         ? "Total value is an authorised override and differs from quantity × price."
         : "Stored total differs from quantity × price.",
+      severity: "warning",
+    });
+  }
+  // Shipment instructions — warnings only, so drafts and older trades are never blocked.
+  if (trade.salesBasis === "lc" && isBlank(trade.lcNumber)) {
+    issues.push({
+      field: "lcNumber",
+      step: 3,
+      message: "LC sale without an LC number — the B/L and documents must follow the LC wording.",
+      severity: "warning",
+    });
+  }
+  if (trade.salesBasis !== undefined && trade.direction === "purchase") {
+    issues.push({ field: "salesBasis", step: 3, message: "Sales basis (LC / Non-LC) applies to sales trades only.", severity: "warning" });
+  }
+  if (
+    !isBlank(trade.placeOfDelivery) &&
+    !isBlank(trade.dischargeLocation) &&
+    trade.placeOfDelivery!.trim().toLowerCase() === trade.dischargeLocation!.trim().toLowerCase()
+  ) {
+    issues.push({
+      field: "placeOfDelivery",
+      step: 3,
+      message: "Place of delivery is the same as the discharge location — leave it blank unless the buyer asked for a different place.",
+      severity: "warning",
+    });
+  }
+  const packing = packingBreakdown(trade);
+  const contractMt = quantityInMt(trade.quantity, trade.uom);
+  if (packing.netMt !== undefined && contractMt !== undefined && Math.abs(packing.netMt - contractMt) > 0.0005) {
+    const allowed = trade.tolerancePct !== undefined ? (contractMt * trade.tolerancePct) / 100 : 0;
+    const within = Math.abs(packing.netMt - contractMt) <= allowed + 0.0005;
+    issues.push({
+      field: "packagesPerContainer",
+      step: 3,
+      message: `Containers × packages × kg give ${formatNumber(packing.netMt, 3)} MT net, but the trade quantity is ${formatNumber(contractMt, 3)} MT${
+        within ? " (within the agreed tolerance)" : ""
+      }.`,
       severity: "warning",
     });
   }

@@ -6,7 +6,7 @@ import { appError, displayName, getOrThrow, requirePermission, requireViewer } f
 import { insertDocument } from "./lib/documents";
 import { nextBlRecordNumber } from "./lib/numbering";
 import { hasPermission } from "./lib/roles";
-import { partyAddress } from "./lib/templateEngine";
+import { buildBlDraft } from "./lib/blDraft";
 import { blStatusV } from "./lib/validators";
 import { canTransitionBl } from "./lib/workflow";
 import { ensureChecklistForTrade } from "./dispatch";
@@ -33,6 +33,7 @@ const editableFieldsV = {
   consignee: v.optional(v.string()),
   notifyParty: v.optional(v.string()),
   notifyInstructions: v.optional(v.string()),
+  alsoNotifyParty: v.optional(v.string()),
   buyerDetails: v.optional(v.string()),
   sellerDetails: v.optional(v.string()),
   vessel: v.optional(v.string()),
@@ -56,6 +57,8 @@ const editableFieldsV = {
   containerNumbers: v.optional(v.array(v.string())),
   sealNumbers: v.optional(v.array(v.string())),
   freightTerms: v.optional(v.string()),
+  freightPayableAt: v.optional(v.string()),
+  freightPayableBy: v.optional(v.string()),
   originalsCount: v.optional(v.number()),
   specialClauses: v.optional(v.string()),
   instructions: v.optional(v.string()),
@@ -67,12 +70,6 @@ type BlEditableFields = typeof blFieldsObjectV.type;
 const EDITABLE_KEYS = Object.keys(editableFieldsV) as (keyof BlEditableFields)[];
 
 const EDITABLE_STATUSES: Doc<"blDocuments">["status"][] = ["draft", "prepared"];
-
-function partyBlock(p: { name?: string; address?: string; city?: string; state?: string; postalCode?: string; country?: string } | null) {
-  if (!p?.name) return undefined;
-  const addr = partyAddress(p);
-  return addr ? `${p.name}\n${addr}` : p.name;
-}
 
 async function enrich(ctx: QueryCtx, bl: Doc<"blDocuments">) {
   const name = async (id?: Id<"users">) => (id ? displayName(await ctx.db.get(id)) : null);
@@ -150,19 +147,17 @@ export const createFromTrade = mutation({
       .take(20);
     const contract = contracts.find((c) => c.isCurrent && c.status !== "cancelled");
 
-    const ours = partyBlock(company);
-    const theirs = partyBlock(counterparty);
-    const isSales = trade.direction === "sales";
-    const buyer = isSales ? theirs : ours;
-    const seller = isSales ? ours : theirs;
-    const goods = [
-      commodity?.name,
-      commodity?.grade ? `Grade: ${commodity.grade}` : undefined,
-      commodity?.hsCode ? `HS Code: ${commodity.hsCode}` : undefined,
-      trade.origin ? `Origin: ${trade.origin}` : undefined,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // Back-to-back sale: the shipper comes from the linked purchase (supplier / factory).
+    const purchaseTrade = trade.direction === "sales" && trade.purchaseTradeId ? await ctx.db.get(trade.purchaseTradeId) : null;
+    const supplier = purchaseTrade?.counterpartyId ? await ctx.db.get(purchaseTrade.counterpartyId) : null;
+    const draft = buildBlDraft({
+      trade,
+      company,
+      counterparty,
+      commodity,
+      purchase: purchaseTrade ? { supplier, manufacturer: purchaseTrade.manufacturer } : null,
+      contractNumber: contract?.contractNumber ?? trade.printedContractNumber,
+    });
 
     const blRecordNumber = await nextBlRecordNumber(ctx);
     const now = Date.now();
@@ -174,22 +169,7 @@ export const createFromTrade = mutation({
       version: 1,
       isCurrent: true,
       status: "draft",
-      shipper: seller,
-      consignee: buyer,
-      notifyParty: buyer,
-      buyerDetails: buyer,
-      sellerDetails: seller,
-      portOfLoading: trade.loadingLocation,
-      portOfDischarge: trade.dischargeLocation,
-      placeOfDelivery: trade.dischargeLocation,
-      shipmentPeriod: trade.shipmentPeriod,
-      goodsDescription: goods || undefined,
-      commodity: commodity?.name ?? trade.commodityName,
-      grade: commodity?.grade,
-      quantity: trade.quantity,
-      uom: trade.uom,
-      packingDescription: trade.packingClause,
-      freightTerms: trade.freightTerms,
+      ...draft,
       containerNumbers: [],
       sealNumbers: [],
       hiddenFields: [],
