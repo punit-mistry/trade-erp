@@ -6,5 +6,7 @@ export default defineConfig({
     environment: "edge-runtime",
     server: { deps: { inline: ["convex-test"] } },
     include: ["tests/**/*.test.ts"],
+    // The first convex-test case per file loads every Convex module (~3.5s cold), close to the 5s default.
+    testTimeout: 20_000,
   },
 });

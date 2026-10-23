@@ -100,6 +100,8 @@ role/status/grants; users cannot change their own role.
 | D B/L, Dispatch, Docs | `convex/blDocuments.ts`, `convex/dispatch.ts`, `convex/documents.ts` | `/dispatch/**`, `/documents/**`, `features/bl/**`, `features/dispatch/**`, `features/documents/**` |
 | E Dashboard & Search | `convex/dashboard.ts`, `convex/search.ts`, `convex/activity.ts`, `convex/fx.ts` | `/dashboard`, `/activity`, `components/layout/command-palette.tsx`, `features/dashboard/**`, `features/activity/**`, `features/fx/**` |
 | F Admin & Seed | `convex/companies.ts`, `convex/commodities.ts`, `convex/lookups.ts`, `convex/settings.ts`, `convex/seed.ts`, `convex/users.ts` (extend) | `/admin/**`, `/profile`, `features/admin/**` |
+| G AI assistant | `convex/ai.ts`, `convex/lib/ai.ts` (Groq via its OpenAI-compatible API) | `features/ai/**`, smart actions in `features/trades/ai-*.tsx`, `features/suppliers/ai-supplier-import.tsx`, `features/contracts/templates/ai-clause-drafter.tsx`, `features/admin/ai-settings-card.tsx` |
+| H Onboarding & help | `convex/onboarding.ts`, `convex/lib/helpContent.ts` | `/help`, `features/onboarding/**` |
 
 Shared exports other modules rely on (exact names):
 

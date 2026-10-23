@@ -28,6 +28,7 @@ export const tradeStatusV = v.union(
 export type TradeStatus = Infer<typeof tradeStatusV>;
 
 export const toleranceOptionV = v.union(v.literal("buyer"), v.literal("seller"), v.literal("both"));
+export const salesBasisV = v.union(v.literal("lc"), v.literal("non_lc"));
 
 export const contractStatusV = v.union(
   v.literal("draft"),
@@ -140,6 +141,8 @@ export const tradeFieldsV = {
   commodityId: v.optional(v.id("commodities")),
   tradeDate: v.optional(v.string()), // ISO date YYYY-MM-DD
   sourceReference: v.optional(v.string()), // enquiry / PO / external ref
+  // Sales only: the back-to-back purchase this sale ships (B/L shipper comes from it).
+  purchaseTradeId: v.optional(v.id("trades")),
   // Step 2 — quantity & price
   quantity: v.optional(v.number()),
   uom: v.optional(v.string()),
@@ -162,6 +165,26 @@ export const tradeFieldsV = {
   freightTerms: v.optional(v.string()),
   specialConditions: v.optional(v.string()),
   internalNotes: v.optional(v.string()), // NEVER rendered in external documents
+  // Step 3 — shipment instructions agreed in the contract (B/L parties, LC, places)
+  consignee: v.optional(v.string()),
+  notifyParty: v.optional(v.string()),
+  alsoNotifyParty: v.optional(v.string()),
+  salesBasis: v.optional(salesBasisV),
+  lcNumber: v.optional(v.string()),
+  placeOfReceipt: v.optional(v.string()),
+  placeOfDelivery: v.optional(v.string()), // blank = same as discharge location
+  freightPayableAt: v.optional(v.string()),
+  freightPayableBy: v.optional(v.string()),
+  originalBlCount: v.optional(v.number()),
+  // Step 3 — containers & packing (drive SI body text and weights)
+  containerCount: v.optional(v.number()),
+  containerType: v.optional(v.string()),
+  packageType: v.optional(v.string()), // BALES, BAGS, … (B/L body wording)
+  packagesPerContainer: v.optional(v.number()),
+  packageNetKg: v.optional(v.number()),
+  palletsPerContainer: v.optional(v.number()),
+  palletType: v.optional(v.string()), // e.g. SHRINK WRAPPED PLASTIC PALLET BASE
+  packingKgPerContainer: v.optional(v.number()),
   // Step 4 — contract information
   buyerReference: v.optional(v.string()),
   buyerReferenceDate: v.optional(v.string()),

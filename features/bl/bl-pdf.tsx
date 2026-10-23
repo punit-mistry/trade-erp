@@ -74,7 +74,13 @@ function BlPdfDocument({ data }: { data: BlPrintData }) {
             <Cell label="Consignee" value={data.consignee} />
             <Cell
               label="Notify party"
-              value={[data.notifyParty, data.notifyInstructions !== "—" ? data.notifyInstructions : ""].filter(Boolean).join("\n")}
+              value={[
+                data.notifyParty,
+                data.notifyInstructions !== "—" ? data.notifyInstructions : "",
+                data.alsoNotifyParty ? `\nALSO NOTIFY:\n${data.alsoNotifyParty}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n")}
             />
           </View>
           <View style={s.row}>

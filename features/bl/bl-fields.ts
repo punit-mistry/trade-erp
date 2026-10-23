@@ -9,6 +9,7 @@ export type BlFieldKey =
   | "consignee"
   | "notifyParty"
   | "notifyInstructions"
+  | "alsoNotifyParty"
   | "buyerDetails"
   | "sellerDetails"
   | "vessel"
@@ -32,6 +33,8 @@ export type BlFieldKey =
   | "containerNumbers"
   | "sealNumbers"
   | "freightTerms"
+  | "freightPayableAt"
+  | "freightPayableBy"
   | "originalsCount"
   | "specialClauses"
   | "instructions";
@@ -68,6 +71,7 @@ export const BL_SECTIONS: BlSection[] = [
       { key: "consignee", label: "Consignee", kind: "textarea", required: true, help: "Use “TO ORDER” or “TO ORDER OF <bank>” for negotiable B/Ls." },
       { key: "notifyParty", label: "Notify party", kind: "textarea" },
       { key: "notifyInstructions", label: "Notify party instructions", kind: "textarea" },
+      { key: "alsoNotifyParty", label: "Also notify", kind: "textarea", help: "Second notify party (e.g. our company). On LC sales, follow the LC." },
       { key: "sellerDetails", label: "Seller details", kind: "textarea", internal: true },
       { key: "buyerDetails", label: "Buyer details", kind: "textarea", internal: true },
     ],
@@ -80,7 +84,7 @@ export const BL_SECTIONS: BlSection[] = [
       { key: "portOfLoading", label: "Port of loading", kind: "lookup", lookup: "port", required: true },
       { key: "portOfDischarge", label: "Port of discharge", kind: "lookup", lookup: "port", required: true },
       { key: "placeOfReceipt", label: "Place of receipt", kind: "text" },
-      { key: "placeOfDelivery", label: "Final destination / place of delivery", kind: "text" },
+      { key: "placeOfDelivery", label: "Final destination / place of delivery", kind: "text", help: "Leave blank when it is the port of discharge." },
       { key: "shipmentPeriod", label: "Shipment period", kind: "text" },
     ],
   },
@@ -111,6 +115,8 @@ export const BL_SECTIONS: BlSection[] = [
     title: "Freight & originals",
     fields: [
       { key: "freightTerms", label: "Freight terms", kind: "lookup", lookup: "freightTerm" },
+      { key: "freightPayableBy", label: "Freight payable by", kind: "text", help: "e.g. Sai Commodities Ltd" },
+      { key: "freightPayableAt", label: "Freight payable at", kind: "text", help: "e.g. London" },
       { key: "originalsCount", label: "Number of original B/Ls", kind: "number" },
     ],
   },

@@ -6,6 +6,12 @@ import { isPrinted, toFormValues, type BlFieldKey } from "./bl-fields";
  * Printable view-model shared by the HTML preview and the PDF so both show
  * exactly the same (saved) data. Hidden / internal fields render as blank.
  */
+/** "Payable by Sai Commodities Ltd at London" (either part may be missing). */
+function freightPayable(by?: string, at?: string): string {
+  if (!by && !at) return "";
+  return `Payable${by ? ` by ${by}` : ""}${at ? ` at ${at}` : ""}`;
+}
+
 export function blPrintData(bl: BlRecord) {
   const values = toFormValues(bl);
   const show = (key: BlFieldKey) => isPrinted(values, key);
@@ -33,6 +39,7 @@ export function blPrintData(bl: BlRecord) {
     consignee: text("consignee"),
     notifyParty: text("notifyParty"),
     notifyInstructions: text("notifyInstructions"),
+    alsoNotifyParty: show("alsoNotifyParty") ? (bl.alsoNotifyParty ?? "") : "",
     vessel: [text("vessel"), show("voyage") && bl.voyage ? `Voy. ${bl.voyage}` : ""].filter((s) => s && s !== "—").join(" / ") || "—",
     portOfLoading: text("portOfLoading"),
     portOfDischarge: text("portOfDischarge"),
@@ -52,7 +59,9 @@ export function blPrintData(bl: BlRecord) {
     netWeight: num("netWeight", bl.weightUnit),
     containers: show("containerNumbers") ? bl.containerNumbers : [],
     seals: show("sealNumbers") ? bl.sealNumbers : [],
-    freightTerms: text("freightTerms"),
+    freightTerms: [text("freightTerms"), freightPayable(show("freightPayableBy") ? bl.freightPayableBy : undefined, show("freightPayableAt") ? bl.freightPayableAt : undefined)]
+      .filter((x) => x && x !== "—")
+      .join(" — ") || "—",
     originals: num("originalsCount"),
     specialClauses: show("specialClauses") ? (bl.specialClauses ?? "") : "",
   };

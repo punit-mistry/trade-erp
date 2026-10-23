@@ -155,6 +155,100 @@ describe("physical trade lifecycle", () => {
   });
 });
 
+describe("shipment instructions", () => {
+  test("are saved, cloned without the LC number, and reach the contract variables", async () => {
+    const s = await setup();
+    const shipment = {
+      salesBasis: "lc" as const,
+      lcNumber: "LC/2026/00451",
+      consignee: "TO THE ORDER OF BANCO DE CREDITO DEL PERU",
+      notifyParty: "Conte Group S.A.C.\nLima, Peru",
+      alsoNotifyParty: "Sai Commodities Ltd\n20 Barclay Road, Croydon CR0 1JN",
+      placeOfReceipt: "Abidjan",
+      freightPayableAt: "London",
+      originalBlCount: 3,
+      containerCount: 5,
+      containerType: "20' ST",
+      packageType: "BAGS",
+      packagesPerContainer: 40,
+      packageNetKg: 1000,
+      palletsPerContainer: 16,
+      packingKgPerContainer: 560,
+    };
+    const id = await createTrade(s.manager.client, { fields: { ...fullFields(s), ...shipment }, clientRequestId: "request-ship" });
+    const { trade, issues } = await s.manager.client.query(api.trades.get, { id });
+    expect(trade).toMatchObject(shipment);
+    // 5 x 40 x 1,000 kg = 200 MT = the trade quantity, so no packing warning.
+    expect(issues.filter((i) => i.field === "packagesPerContainer")).toEqual([]);
+
+    const source = await s.staff.client.query(api.trades.getCloneSource, { id });
+    expect(source.fields.lcNumber).toBeUndefined();
+    expect(source.fields.consignee).toBe(shipment.consignee);
+    expect(source.fields.containerCount).toBe(5);
+
+    const contractId = await s.manager.client.mutation(api.contracts.generateDraft, { tradeId: id });
+    const contract = await s.t.run((ctx) => ctx.db.get(contractId));
+    expect(contract!.snapshot.variables).toMatchObject({
+      lcNumber: "LC/2026/00451",
+      consignee: shipment.consignee,
+      containers: "5 x 20' ST",
+      totalPackages: "200 BAGS",
+      netWeight: "200,000 kg",
+      grossWeight: "202,800 kg",
+    });
+  });
+});
+
+describe("back-to-back purchase link", () => {
+  test("sale links to a purchase, bad links are refused, and the B/L ships on behalf of us", async () => {
+    const s = await setup();
+    const supplierId = await s.manager.client.mutation(api.counterparties.create, {
+      input: { name: "Union Rubber Sikensi", type: "international", country: "Côte d'Ivoire", roles: ["supplier"] },
+    });
+    const purchaseId = await createTrade(s.manager.client, {
+      fields: { ...fullFields(s), direction: "purchase", counterpartyId: supplierId, manufacturer: "UNION RUBBER SIKENSI FACTORY" },
+      clientRequestId: "request-purchase",
+    });
+    const purchase = (await s.manager.client.query(api.trades.get, { id: purchaseId })).trade;
+
+    // Refused: purchase linked to a purchase, and a sale linked to a sale.
+    await expect(
+      createTrade(s.manager.client, {
+        fields: { ...fullFields(s), direction: "purchase", purchaseTradeId: purchaseId },
+        clientRequestId: "request-bad-1",
+      }),
+    ).rejects.toThrow(/only a sales trade/i);
+    const otherSale = await createTrade(s.manager.client, { fields: fullFields(s), clientRequestId: "request-sale-0" });
+    await expect(
+      createTrade(s.manager.client, { fields: { ...fullFields(s), purchaseTradeId: otherSale }, clientRequestId: "request-bad-2" }),
+    ).rejects.toThrow(/not a purchase trade/i);
+
+    const saleId = await createTrade(s.manager.client, {
+      fields: { ...fullFields(s), quantity: 150, purchaseTradeId: purchaseId, consignee: "TO ORDER" },
+      clientRequestId: "request-sale-1",
+    });
+    const sale = (await s.manager.client.query(api.trades.get, { id: saleId })).trade;
+    expect(sale.purchaseTradeNumber).toBe(purchase.tradeNumber);
+
+    const fromPurchase = await s.manager.client.query(api.trades.links, { id: purchaseId });
+    expect(fromPurchase.sales.map((t) => t._id)).toEqual([saleId]);
+    expect(fromPurchase.linkedQuantity).toBe(150);
+    const options = await s.manager.client.query(api.trades.purchaseOptions, {});
+    expect(options.map((o) => o._id)).toContain(purchaseId);
+    expect(options.map((o) => o._id)).not.toContain(saleId);
+
+    // A clone of the sale is not linked to the same purchase automatically.
+    const cloneSource = await s.staff.client.query(api.trades.getCloneSource, { id: saleId });
+    expect(cloneSource.fields.purchaseTradeId).toBeUndefined();
+
+    const blId = await s.manager.client.mutation(api.blDocuments.createFromTrade, { tradeId: saleId });
+    const bl = await s.t.run((ctx) => ctx.db.get(blId));
+    expect(bl!.shipper).toMatch(/^UNION RUBBER SIKENSI FACTORY ON BEHALF OF /);
+    expect(bl!.consignee).toBe("TO ORDER");
+    expect(bl!.placeOfDelivery).toBeUndefined();
+  });
+});
+
 describe("contracts", () => {
   test("generated from trade data, frozen on issue, revised without changing the issued version", async () => {
     const s = await setup();

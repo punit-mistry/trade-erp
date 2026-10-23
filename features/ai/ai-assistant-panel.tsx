@@ -42,41 +42,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
+import { errorText, RichText } from "./ai-shared";
 
 const MAX_INPUT = 4000;
-
-function errorText(e: unknown): string {
-  const data = (e as { data?: { message?: unknown } })?.data;
-  if (data && typeof data.message === "string" && data.message) return data.message;
-  if (e instanceof Error && e.message) return e.message;
-  return "Something went wrong while contacting the AI service. Please try again.";
-}
-
-/** Minimal, XSS-safe inline formatting: **bold** and `code`. */
-function RichText({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`)/g);
-  return (
-    <p className="whitespace-pre-wrap break-words">
-      {parts.map((part, i) => {
-        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-          return (
-            <strong key={i} className="font-semibold">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-        if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
-          return (
-            <code key={i} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
-              {part.slice(1, -1)}
-            </code>
-          );
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </p>
-  );
-}
 
 function UserMessage({ message }: { message: Doc<"aiMessages"> }) {
   return (
@@ -367,8 +335,9 @@ export function AiAssistantPanel({
               <div className="rounded-lg border bg-muted/40 p-3 text-sm">
                 <p className="font-medium">The AI assistant isn&apos;t configured</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  An administrator must add the AI provider API key to the Convex deployment, then redeploy. Until then
-                  the assistant stays off — it never makes up answers.
+                  An administrator must set <code className="font-mono">{status.keyEnv}</code> on the Convex deployment
+                  (<code className="font-mono">npx convex env set {status.keyEnv} …</code>). Until then the assistant
+                  stays off — it never makes up answers.
                 </p>
               </div>
             ) : !status.enabled ? (

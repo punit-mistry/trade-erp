@@ -1,33 +1,40 @@
 /**
- * AI (LLM) helpers. Talks to Google Gemini's free tier through its
- * OpenAI-compatible endpoint (any OpenAI-compatible provider works via
- * AI_BASE_URL). Everything here is real model output — there are no canned
- * answers. Pure helpers (parsing/validation/redaction) are unit-tested.
+ * AI (LLM) helpers. Talks to Groq's free tier through its OpenAI-compatible
+ * endpoint (any OpenAI-compatible provider works via AI_BASE_URL). Everything
+ * here is real model output — there are no canned answers. Pure helpers
+ * (parsing/validation/redaction) are unit-tested.
  *
  * Configuration (Convex deployment env, never exposed to the browser):
- *   GEMINI_API_KEY  required to enable AI
- *   AI_MODEL        optional, default gemini-3.5-flash-lite
- *   AI_BASE_URL     optional, default Gemini's OpenAI-compatible base URL
+ *   NEXT_GROQ_AI_API_KEY  required to enable AI
+ *   AI_MODEL              optional, default openai/gpt-oss-120b
+ *   AI_BASE_URL           optional, default Groq's OpenAI-compatible base URL
  */
 import { z } from "zod";
 
-export const DEFAULT_AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
-export const DEFAULT_AI_MODEL = "gemini-3.5-flash-lite";
+export const AI_KEY_ENV = "NEXT_GROQ_AI_API_KEY";
+export const AI_PROVIDER = "Groq (free tier)";
+export const DEFAULT_AI_BASE_URL = "https://api.groq.com/openai/v1/";
+export const DEFAULT_AI_MODEL = "openai/gpt-oss-120b";
 /** Per-user requests per UTC day, protecting the shared free-tier quota. */
 export const AI_DAILY_CAP = 100;
+/**
+ * Requests per UTC day for the whole workspace. Groq's free tier limits the
+ * API key (1,000 requests/day), so one user must not be able to drain it.
+ */
+export const AI_WORKSPACE_DAILY_CAP = 900;
 export const AI_MAX_INPUT_CHARS = 4000;
 export const AI_MAX_EXTRACT_CHARS = 8000;
 
 export const AI_DATA_NOTICE =
-  "AI runs on Google Gemini's free tier: Google may use free-tier prompts to improve its products. " +
+  "AI runs on Groq's free tier: your question and the ERP records needed to answer it are sent to Groq to generate the reply. " +
   "Internal notes, bank details, emails and phone numbers from the ERP are never sent.";
 
 export type AiConfig = { configured: boolean; apiKey: string; model: string; baseUrl: string };
 
-export function aiConfig(): AiConfig {
-  const apiKey = (process.env.GEMINI_API_KEY ?? "").trim();
-  const model = (process.env.AI_MODEL ?? "").trim() || DEFAULT_AI_MODEL;
-  let baseUrl = (process.env.AI_BASE_URL ?? "").trim() || DEFAULT_AI_BASE_URL;
+export function aiConfig(env: Record<string, string | undefined> = process.env): AiConfig {
+  const apiKey = (env[AI_KEY_ENV] ?? "").trim();
+  const model = (env.AI_MODEL ?? "").trim() || DEFAULT_AI_MODEL;
+  let baseUrl = (env.AI_BASE_URL ?? "").trim() || DEFAULT_AI_BASE_URL;
   if (!baseUrl.endsWith("/")) baseUrl += "/";
   return { configured: apiKey.length > 0, apiKey, model, baseUrl };
 }
@@ -51,16 +58,29 @@ export class AiError extends Error {
   }
 }
 
+/** Seconds to wait from a `retry-after` header (seconds or HTTP date); null when absent/invalid. */
+export function retryAfterSeconds(header: string | null | undefined, now = Date.now()): number | null {
+  if (!header) return null;
+  const secs = Number(header.trim());
+  if (header.trim() !== "" && Number.isFinite(secs)) return secs >= 0 ? Math.ceil(secs) : null;
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? null : Math.max(0, Math.ceil((at - now) / 1000));
+}
+
 /** Maps an HTTP status from the provider to a friendly, actionable message. */
-export function classifyHttpError(status: number, body: string): AiError {
+export function classifyHttpError(status: number, body: string, retryAfter?: string | null): AiError {
   if (status === 401 || status === 403) {
-    return new AiError("auth", "The AI provider rejected the API key. An administrator should check GEMINI_API_KEY.");
+    return new AiError("auth", `The AI provider rejected the API key. An administrator should check ${AI_KEY_ENV}.`);
   }
   if (status === 429) {
-    return new AiError(
-      "rate_limited",
-      "AI is busy right now — the free-tier limit was reached. Please try again in a minute (daily limits reset at midnight Pacific time).",
-    );
+    const wait = retryAfterSeconds(retryAfter);
+    const when =
+      wait === null || wait <= 5
+        ? "Please try again in a few seconds."
+        : wait <= 120
+          ? `Please try again in about ${wait} seconds.`
+          : `Please try again in about ${Math.ceil(wait / 60)} minutes.`;
+    return new AiError("rate_limited", `Groq's rate limit was reached — the free tier allows only a few requests per minute. ${when}`);
   }
   if (status === 400 || status === 404) {
     const hint = /model/i.test(body) ? " Check the AI_MODEL setting." : "";
@@ -82,12 +102,19 @@ type CompletionOptions = {
   jsonMode?: boolean;
 };
 
+/** Reasoning models spend output tokens thinking first; keep that short so answers aren't cut off. */
+export function reasoningEffort(model: string): "low" | undefined {
+  return /gpt-oss|qwen3/i.test(model) ? "low" : undefined;
+}
+
 function requestBody(cfg: AiConfig, o: CompletionOptions, stream: boolean) {
+  const effort = reasoningEffort(cfg.model);
   return JSON.stringify({
     model: cfg.model,
     messages: o.messages,
     temperature: o.temperature ?? 0.3,
     ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}),
+    ...(effort ? { reasoning_effort: effort } : {}),
     ...(o.jsonMode ? { response_format: { type: "json_object" } } : {}),
     ...(stream ? { stream: true } : {}),
   });
@@ -135,7 +162,7 @@ export async function chatCompletion(cfg: AiConfig, o: CompletionOptions): Promi
     });
   }
   const text = await res.text();
-  if (!res.ok) throw classifyHttpError(res.status, text);
+  if (!res.ok) throw classifyHttpError(res.status, text, res.headers.get("retry-after"));
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -200,7 +227,7 @@ export async function streamChatCompletion(
     headers: headers(cfg),
     body: requestBody(cfg, o, true),
   });
-  if (!res.ok) throw classifyHttpError(res.status, await res.text());
+  if (!res.ok) throw classifyHttpError(res.status, await res.text(), res.headers.get("retry-after"));
   const type = res.headers.get("content-type") ?? "";
   if (!res.body || !type.includes("text/event-stream")) {
     // Provider answered without streaming — parse as a normal completion.
@@ -299,8 +326,26 @@ function cleanText(value: unknown, max: number): string | undefined {
 function cleanNumber(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (typeof value !== "string") return undefined;
-  const n = Number(value.replace(/[, ]/g, "").replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) && value.trim() !== "" ? n : undefined;
+  const digits = value.replace(/[, ]/g, "").replace(/[^\d.-]/g, "");
+  // No digits at all (e.g. "abc", "TBD") must not become 0.
+  if (!/\d/.test(digits)) return undefined;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** "20ft GP" / "40 HQ" / "20' reefer" → "20' ST" / "40' HC" / "20' RF"; undefined if no 20/40/45 size. */
+export function normaliseContainerType(raw: string): string | undefined {
+  const s = raw.toUpperCase();
+  const size = s.match(/(?:^|[^\d])(20|40|45)(?!\d)/)?.[1];
+  if (!size) return undefined;
+  const type = /\b(HC|HQ|HIGH\s*CUBE)\b/.test(s)
+    ? "HC"
+    : /\b(RF|RH|REEFER)\b/.test(s)
+      ? "RF"
+      : /\b(OT|OPEN\s*TOP)\b/.test(s)
+        ? "OT"
+        : "ST";
+  return `${size}' ${type}`;
 }
 
 export const TRADE_EXTRACT_FIELDS = [
@@ -320,6 +365,22 @@ export const TRADE_EXTRACT_FIELDS = [
   "packing",
   "buyerReference",
   "notes",
+  // Shipment instructions (Field Master F02–F27)
+  "consignee",
+  "notifyParty",
+  "lcNumber",
+  "placeOfReceipt",
+  "placeOfDelivery",
+  "containerCount",
+  "containerType",
+  "packagesPerContainer",
+  "packageNetKg",
+  "palletsPerContainer",
+  "freightTerms",
+  "originalBlCount",
+  "packageType",
+  "palletType",
+  "freightPayableBy",
 ] as const;
 export type TradeExtractField = (typeof TRADE_EXTRACT_FIELDS)[number];
 
@@ -377,6 +438,56 @@ export function normaliseTradeExtraction(raw: unknown): TradeExtraction {
       case "notes":
         if (cleanText(f.value, 1000)) set(cleanText(f.value, 1000)!);
         break;
+      case "containerCount":
+      case "packagesPerContainer":
+      case "palletsPerContainer":
+      case "originalBlCount": {
+        const n = cleanNumber(f.value);
+        const max = key === "originalBlCount" ? 10 : key === "containerCount" ? 999 : 100000;
+        if (n !== undefined && Number.isInteger(n) && n >= 1 && n <= max) set(n);
+        else out.dropped.push(key);
+        break;
+      }
+      case "packageNetKg": {
+        const n = cleanNumber(f.value);
+        if (n !== undefined && n > 0 && n < 100000) set(Math.round(n * 1000) / 1000);
+        else out.dropped.push(key);
+        break;
+      }
+      case "containerType": {
+        const t = normaliseContainerType(String(f.value));
+        if (t) set(t);
+        else out.dropped.push(key);
+        break;
+      }
+      case "freightTerms": {
+        const v = cleanText(f.value, 60);
+        if (v && /prepaid/i.test(v)) set("Freight Prepaid");
+        else if (v && /collect/i.test(v)) set("Freight Collect");
+        else if (v) set(v);
+        else out.dropped.push(key);
+        break;
+      }
+      case "packageType": {
+        const v = cleanText(f.value, 30)?.toUpperCase();
+        const map: Record<string, string> = { BALE: "BALES", BAG: "BAGS", CARTON: "CARTONS", DRUM: "DRUMS", PIECE: "PIECES", PCS: "PIECES", BUNDLE: "BUNDLES", PALLET: "PALLETS" };
+        if (v) set(map[v] ?? v);
+        else out.dropped.push(key);
+        break;
+      }
+      case "palletType": {
+        const v = cleanText(f.value, 80)?.toUpperCase();
+        if (v) set(v);
+        else out.dropped.push(key);
+        break;
+      }
+      case "consignee":
+      case "notifyParty": {
+        const v = cleanText(f.value, 500);
+        if (v) set(v);
+        else out.dropped.push(key);
+        break;
+      }
       default: {
         const s = cleanText(f.value, 200);
         if (s) set(s);
@@ -496,6 +607,19 @@ export const AI_SAFE_TRADE_FIELDS = [
   "buyerReference",
   "printedContractNumber",
   "clonedFromNumber",
+  // Shipment instructions without party names/addresses.
+  "salesBasis",
+  "placeOfReceipt",
+  "placeOfDelivery",
+  "originalBlCount",
+  "containerCount",
+  "containerType",
+  "packagesPerContainer",
+  "packageNetKg",
+  "palletsPerContainer",
+  "packingKgPerContainer",
+  "packageType",
+  "palletType",
 ] as const;
 
 export function safeTradeFacts(trade: Record<string, unknown>): Record<string, unknown> {
@@ -505,6 +629,38 @@ export function safeTradeFacts(trade: Record<string, unknown>): Record<string, u
     if (value !== undefined && value !== null && value !== "") out[key] = value;
   }
   return out;
+}
+
+/** Words that don't distinguish one company from another. */
+const NAME_NOISE = new Set(
+  "ltd limited pvt private co company corp corporation inc llc llp plc gmbh sa ag bv pte the and of & international intl".split(" "),
+);
+
+function nameTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !NAME_NOISE.has(w));
+}
+
+/**
+ * How alike two company/commodity names are (0–1), ignoring case, punctuation
+ * and legal suffixes. Used to rank search hits; it is not a fuzzy matcher, so
+ * unrelated names score 0 rather than "a bit similar".
+ */
+export function nameSimilarity(candidate: string, wanted: string): number {
+  const a = nameTokens(candidate);
+  const b = nameTokens(wanted);
+  if (a.length === 0 || b.length === 0) return 0;
+  const ja = a.join(" ");
+  const jb = b.join(" ");
+  if (ja === jb) return 1;
+  if (ja.includes(jb) || jb.includes(ja)) return 0.9;
+  const setA = new Set(a);
+  const shared = b.filter((w) => setA.has(w)).length;
+  const union = new Set([...a, ...b]).size;
+  return Math.round((shared / union) * 100) / 100;
 }
 
 export function compactJson(value: unknown, maxChars = 6000): string {
@@ -573,6 +729,14 @@ Allowed fields: ${TRADE_EXTRACT_FIELDS.join(", ")}.
 - incoterm: e.g. FOB, CIF, CFR, EXW. paymentTerm: e.g. "D/P at Sight", "LC 60 days".
 - shipmentPeriod: as written (e.g. "October 2026"). Locations as written.
 - buyerReference: PO / reference number if present. notes: anything else commercially important, one short sentence.
+- consignee: the full text after a "Consignee" label (e.g. "TO THE ORDER OF <bank>"), including any address. ALWAYS include it when such a line exists.
+- notifyParty: the full text after a "Notify" / "Notify party" label, including the address. ALWAYS include it when such a line exists.
+- lcNumber: letter of credit number if stated. placeOfReceipt / placeOfDelivery: only if stated separately from the ports.
+- containerCount: number of containers (integer); containerType: size and type as written (e.g. "20ft", "40 HC").
+- packagesPerContainer: bales/bags/pieces per container (integer); packageNetKg: net kg of ONE package (e.g. bales of 35 kg → 35).
+- palletsPerContainer: integer. freightTerms: "prepaid" or "collect". originalBlCount: number of original B/Ls (e.g. "3/3 OBL" → 3).
+- packageType: the package word as written (e.g. "bales", "bags"). palletType: pallet wording as written (e.g. "shrink wrapped plastic pallet base").
+- freightPayableBy: the party paying the freight, only if stated (e.g. "freight payable by X").
 Only include fields that are explicitly stated. Never guess or calculate missing values. Confidence: 0.9+ when stated verbatim, lower when inferred.`;
 
 export const SUPPLIER_EXTRACT_PROMPT = `You extract company details from a pasted email signature, letterhead or business card text.

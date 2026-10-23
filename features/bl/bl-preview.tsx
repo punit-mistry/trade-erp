@@ -41,6 +41,7 @@ export function BlPreview({ data }: { data: BlPrintData }) {
         <Cell label="Notify party">
           {data.notifyParty}
           {data.notifyInstructions && data.notifyInstructions !== "—" ? `\n${data.notifyInstructions}` : ""}
+          {data.alsoNotifyParty ? `\n\nALSO NOTIFY:\n${data.alsoNotifyParty}` : ""}
         </Cell>
         <Cell label="Vessel / voyage">{data.vessel}</Cell>
         <Cell label="Place of receipt">{data.placeOfReceipt}</Cell>

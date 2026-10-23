@@ -2,7 +2,7 @@
 
 import { ChevronDown, Lock } from "lucide-react";
 import { useState } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,7 @@ import { NumberInput } from "@/components/shared/form-field";
 import { CountryCombobox, LookupCombobox } from "@/components/shared/lookup-combobox";
 import { cn } from "@/lib/utils";
 import { useWizard } from "../wizard-context";
+import { ShipmentSection } from "./shipment-section";
 import { StepHeading, WizardField } from "./wizard-field";
 
 const TOLERANCE_OPTIONS = [
@@ -21,7 +22,7 @@ const TOLERANCE_OPTIONS = [
 
 export function TermsStep() {
   const { form, errorFor } = useWizard();
-  const values = form.watch(["origin", "manufacturer", "containerLoading", "freightTerms", "specialConditions"]);
+  const values = useWatch({ control: form.control, name: ["origin", "manufacturer", "containerLoading", "freightTerms", "specialConditions"] });
   const [advancedOpen, setAdvancedOpen] = useState(values.some((v) => v !== undefined && v !== ""));
 
   return (
@@ -157,6 +158,8 @@ export function TermsStep() {
             />
           </WizardField>
         </div>
+
+        <ShipmentSection />
 
         <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="rounded-lg border">
           <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/50">

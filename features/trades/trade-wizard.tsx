@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvex, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import {
   AlertCircle,
   ArrowLeft,
@@ -40,6 +40,7 @@ import { ContractStep } from "./steps/contract-step";
 import { QuantityStep } from "./steps/quantity-step";
 import { ReviewStep } from "./steps/review-step";
 import { TermsStep } from "./steps/terms-step";
+import { AiTradeImport } from "./ai-trade-import";
 import { TradeSummaryCard } from "./trade-summary-card";
 import { useTradeAutosave, type SaveStatus } from "./use-trade-autosave";
 import { WizardContext, type InheritSource, type TradeMeta, type WizardContextValue } from "./wizard-context";
@@ -49,7 +50,8 @@ for (const [field, step] of Object.entries(FIELD_STEP)) {
   if (field !== "totalValue" && step) STEP_FIELDS[step].push(field as keyof TradeFields);
 }
 
-const BANK_FIELDS: (keyof TradeFields)[] = ["sellerBankDetails", "buyerBankDetails"];
+/** Inherited values that depend on which side we play — re-derived when the direction changes. */
+const DIRECTION_FIELDS: (keyof TradeFields)[] = ["sellerBankDetails", "buyerBankDetails", "consignee", "notifyParty", "alsoNotifyParty", "freightPayableBy"];
 
 export type TradeWizardProps = {
   initialValues: TradeFormValues;
@@ -114,19 +116,23 @@ export function TradeWizard(props: TradeWizardProps) {
   const locked = meta.status !== undefined && !EDITABLE_TRADE_STATUSES.includes(meta.status);
 
   // Every change (user or defaults) schedules an autosave; user edits drop the "inherited" marker.
-  useEffect(() => {
-    const sub = form.watch((_values, { name, type }) => {
-      if (!name || name === "inheritedFields") return;
-      if (type === "change") {
-        const inherited = form.getValues("inheritedFields");
-        if (inherited?.includes(name)) form.setValue("inheritedFields", markOverridden(inherited, name));
-      }
-      schedule();
-    });
-    return () => sub.unsubscribe();
-  }, [form, schedule]);
+  useEffect(
+    () =>
+      form.subscribe({
+        formState: { values: true },
+        callback: ({ name, type }) => {
+          if (!name || name === "inheritedFields") return;
+          if (type === "change") {
+            const inherited = form.getValues("inheritedFields");
+            if (inherited?.includes(name)) form.setValue("inheritedFields", markOverridden(inherited, name));
+          }
+          schedule();
+        },
+      }),
+    [form, schedule],
+  );
 
-  const values = form.watch();
+  const values = useWatch({ control: form.control });
   const stored = meta.valueOverridden || meta.priceNeedsValidation;
   const issues = useMemo(
     () =>
@@ -239,9 +245,14 @@ export function TradeWizard(props: TradeWizardProps) {
         toast.error(getErrorMessage(e, "Could not load template clauses."));
       }
     },
-    onDirectionChanged: async () => {
-      // Bank details depend on which side we play — re-derive inherited ones.
-      clearInherited((f) => BANK_FIELDS.includes(f));
+    onDirectionChanged: async (direction) => {
+      // Bank details and B/L parties depend on which side we play — re-derive inherited ones.
+      clearInherited((f) => DIRECTION_FIELDS.includes(f));
+      // Only sales are linked to a back-to-back purchase, and only sales have a sales basis.
+      if (direction !== "sales") {
+        if (form.getValues("purchaseTradeId")) form.setValue("purchaseTradeId", undefined, { shouldDirty: true });
+        if (form.getValues("salesBasis")) form.setValue("salesBasis", undefined, { shouldDirty: true });
+      }
       const { counterpartyId, companyId } = form.getValues();
       if (counterpartyId) await applyCounterparty(counterpartyId, false);
       if (companyId) await applyCompany(companyId);
@@ -263,6 +274,8 @@ export function TradeWizard(props: TradeWizardProps) {
       const def = companies.find((c) => c.isDefault) ?? companies[0];
       if (def) {
         form.setValue("companyId", def._id);
+        // One-time mount default; applyCompany only sets state after awaiting the company query.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void applyCompany(def._id);
       }
     }
@@ -367,6 +380,7 @@ export function TradeWizard(props: TradeWizardProps) {
         </Banner>
       )}
 
+      <AiTradeImport />
       <Stepper step={step} onStep={ctxValue.goTo} attempted={attempted} issues={issues} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px]">

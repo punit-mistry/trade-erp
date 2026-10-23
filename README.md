@@ -16,7 +16,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for conventions, module owner
 Requirements: Node.js 20+ (tested on 24), npm, a free Convex account (or Convex local/anonymous dev mode).
 
 ```bash
-cd trading-erp
+cd trade-erp
 npm install
 
 # 1) Create / connect a Convex dev deployment. Logs you in, pushes the schema + functions,
@@ -36,8 +36,8 @@ npm run dev            # http://localhost:3000
 
 ### First user = Administrator
 
-Open http://localhost:3000, choose **Request access** and create an account. The **first** account becomes an
-active **Admin**. Every later sign-up is created as **Staff** with status *Awaiting approval* and cannot see any
+Open http://localhost:3000, choose **Request access** and create an account (password: at least 10 characters with
+letters and numbers). The **first** account becomes an active **Admin**. Every later sign-up is created as **Staff** with status *Awaiting approval* and cannot see any
 data until an Admin activates it under **Administration → Team & Access** (where roles are also assigned).
 
 ### Master data and demo data
@@ -72,6 +72,8 @@ flagged *“unit price needs validation”* instead.
 | Convex deployment (`npx convex env set`) | `JWT_PRIVATE_KEY`, `JWKS` | Convex Auth token signing keys (set by `npx @convex-dev/auth`) |
 | Convex deployment | `SITE_URL` | App URL (only required for OAuth/magic links) |
 | Convex deployment | `ERP_ALLOW_DEMO_SEED` | `true` only on dev/demo deployments to allow `seed:loadDemoData` |
+| Convex deployment | `NEXT_GROQ_AI_API_KEY` | Groq API key — turns on the AI assistant (see §7). Must be set with `npx convex env set`; `.env.local` alone is not read by Convex |
+| Convex deployment | `AI_MODEL`, `AI_BASE_URL` | Optional: Groq model id (default `openai/gpt-oss-120b`) and OpenAI-compatible endpoint (default Groq) |
 
 No secrets are exposed through `NEXT_PUBLIC_*`. See `.env.example`.
 
@@ -102,7 +104,8 @@ No secrets are exposed through `NEXT_PUBLIC_*`. See `.env.example`.
 | Contract Templates | `/contract-templates` | Versioned templates, clause editor, `{{variable}}` picker, unknown-variable checks, defaults per company/direction, numbering formats |
 | B/L & Dispatch | `/dispatch` (+ trade tab) | Structured B/L from the trade, preview, draft PDF, review/verify, record carrier-issued B/L (separate from internal drafts), revisions, dispatch checklist with assignees, due dates, blockers and real completion % |
 | Document Centre | `/documents` | Upload (type/size validated on the server), versions, review status, filters, authorised download |
-| Administration | `/admin/team`, `/admin/masters`, `/activity`, `/profile` | Users & roles, companies, commodities, reference lists, numbering & system settings, audit log |
+| Administration | `/admin/team`, `/admin/masters`, `/activity`, `/profile` | Users & roles, companies, commodities, reference lists, numbering & system settings (incl. AI on/off), audit log |
+| Help Centre | `/help` | Role-filtered step-by-step guides, search, guided tours, getting-started checklist, keyboard shortcuts |
 
 Global search: **Ctrl/⌘ + K** (trades, counterparties, contracts, documents).
 
@@ -148,3 +151,50 @@ Users cannot change their own role; only Admins can, and the last active Admin c
   team. Generated documents do not guarantee legal compliance.
 - Staff can view all operational records (needed to clone previous trades) but edit only their own/assigned
   drafts.
+
+---
+
+## 7. AI assistant (Groq)
+
+Runs on Groq's free tier through its OpenAI-compatible API (`convex/lib/ai.ts`). Every answer is real model output
+grounded in data the signed-in user may see; when AI is not configured or switched off, the UI says so instead of
+answering.
+
+```bash
+npx convex env set NEXT_GROQ_AI_API_KEY <your Groq key>   # per deployment (dev and prod separately)
+npx convex env set AI_MODEL openai/gpt-oss-120b           # optional — check console.groq.com for current models
+```
+
+- **Chat** — sparkle button in the top bar. Page-aware, cites the records it used, can be stopped and retried.
+- **Fill from email** (Book Trade wizard) and **Fill from signature** (supplier form) — suggestions are reviewed
+  field by field; nothing is saved automatically. Counterparties/commodities are only matched to existing records.
+  Fill from email also reads the shipment instructions (consignee, notify, LC no., containers, packages, kg per
+  package, pallets, freight, original B/Ls) and matches ports to the reference list.
+- **AI summary** on a trade's Overview tab — marked *Outdated* when the trade changes after it was generated.
+- **Draft with AI** in the contract template editor — unknown `{{variables}}` are flagged before insertion.
+- **Admin switch** — Companies & Masters → System Settings → AI assistant.
+
+Limits: 100 requests per user per UTC day and 900 per workspace (Groq's free tier allows 1,000/day per key and about
+8,000 tokens/minute, so busy moments may return a friendly "try again in a few seconds"). Internal notes, bank
+details, emails and phone numbers are never sent to the model.
+
+---
+
+## 8. Shipment instructions & back-to-back trades
+
+Aligned with the *Shipment Document Index (SI 3.0)*: the purchase and sales contracts are the source of truth
+("Stage A") for the Shipping Instruction / B/L and later document checks.
+
+- **Book Trade → Terms & Logistics → Shipment instructions**: consignee, notify, also notify, sales basis (LC /
+  Non-LC) and LC no., place of receipt / delivery, freight payable at, number of original B/Ls, containers, packages
+  per container, net kg per package, pallets and packing weight. Net/gross weight and MT are calculated
+  (packages × kg, + packing weight) and a warning shows when they disagree with the trade quantity. On sales, the
+  buyer is the default consignee/notify party and our company the "also notify".
+- **Back-to-back purchase** (step 1, sales only): links the sale to the purchase it ships. The purchase's factory
+  (manufacturer) or supplier becomes the B/L shipper "ON BEHALF OF" our company; the purchase shows how much of
+  its quantity is sold.
+- **Create B/L from trade** fills every box from these fields: place of delivery stays blank when it equals the
+  port of discharge; the body lists containers, packages, pallets, HS code, origin, PO/LC no. and contract no.
+- All shipment fields are available as contract template variables (`{{consignee}}`, `{{lcNumber}}`,
+  `{{containers}}`, `{{netWeight}}`, …). Container/seal numbers, vessel and DEC no. are recorded on the B/L after
+  loading.

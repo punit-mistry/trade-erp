@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, Calculator, Pencil } from "lucide-react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { LookupCombobox } from "@/components/shared/lookup-combobox";
 import { NumberInput } from "@/components/shared/form-field";
@@ -13,7 +13,7 @@ import { StepHeading, WizardField } from "./wizard-field";
 
 export function QuantityStep() {
   const { form, meta, can, errorFor } = useWizard();
-  const [quantity, pricePerUom, currency, uom] = form.watch(["quantity", "pricePerUom", "currency", "uom"]);
+  const [quantity, pricePerUom, currency, uom] = useWatch({ control: form.control, name: ["quantity", "pricePerUom", "currency", "uom"] });
   const computed = computeTradeValue(quantity, pricePerUom);
   const storedIsAuthoritative = Boolean(meta.valueOverridden || meta.priceNeedsValidation);
   const shownValue = storedIsAuthoritative ? meta.totalValue : computed;

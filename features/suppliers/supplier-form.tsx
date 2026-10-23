@@ -32,6 +32,7 @@ import {
   toCounterpartyInput,
   type SupplierFormValues,
 } from "./supplier-schema";
+import { AiSupplierImport } from "./ai-supplier-import";
 
 type Props =
   | { mode: "create"; initial?: SupplierFormValues; clonedFrom?: { name: string; code: string } }
@@ -206,7 +207,11 @@ export function SupplierForm(props: Props) {
         </div>
       )}
 
-      <Section title="Basic information" description="How this company is identified across trades and contracts.">
+      <Section
+        title="Basic information"
+        description="How this company is identified across trades and contracts."
+        actions={<AiSupplierImport form={form} />}
+      >
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="md:col-span-2">{text("name", "Supplier name", { required: true, placeholder: "e.g. Golden Agro Exports Pte" })}</div>
           <FormField label="Supplier code" help="Generated automatically on save.">
