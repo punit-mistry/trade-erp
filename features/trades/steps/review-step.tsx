@@ -2,6 +2,7 @@
 
 import { AlertCircle, AlertTriangle, CheckCircle2, Lock, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
+import { useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { DetailList } from "@/components/shared/section";
 import { computeTradeValue, formatDate, formatMoney, formatNumber, formatPrice, formatQuantity } from "@/lib/format";
@@ -31,7 +32,7 @@ const TOLERANCE_LABEL = { buyer: "Buyer's option", seller: "Seller's option", bo
 
 export function ReviewStep() {
   const { form, issues, goTo, meta } = useWizard();
-  const v = form.watch();
+  const v = useWatch({ control: form.control });
   const labels = useTradeLabels(v);
   const computed = computeTradeValue(v.quantity, v.pricePerUom);
   const value = meta.valueOverridden || meta.priceNeedsValidation ? meta.totalValue : computed;

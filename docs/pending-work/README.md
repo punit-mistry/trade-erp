@@ -12,6 +12,8 @@ The two interrupted tasks were:
 2. **"UI/UX polish across modules"** — shell/navigation polish, dark mode, onboarding,
    guided tours and consistency passes across the app.
 
+> **Update 24 Oct 2026:** tasks 1–5 are complete; see the table below.
+>
 > **Scope decision (from the user, after the interruption):** the AI provider is
 > **Groq**, not Gemini. Stack is **Next.js + Convex**, key lives in
 > **`NEXT_GROQ_AI_API_KEY`**. The backend was written against Gemini's
@@ -70,16 +72,18 @@ Schema is finished: `aiThreads`, `aiMessages`, `aiUsage`, `aiTradeSummaries`,
 
 ## What is missing, in recommended order
 
-| # | Task | Status | Blocks |
+| # | Task | Status | Notes |
 | --- | --- | --- | --- |
-| 0 | Create 3 missing components (`ai-assistant-button`, `onboarding-host`, `help-menu`) | ✅ done | build unblocked |
-| 1 | Switch AI config/prompts/errors from Gemini to **Groq** (`NEXT_GROQ_AI_API_KEY`) | ⬜ pending | AI actually working |
-| 2 | AI assistant chat panel | ✅ done (`features/ai/ai-assistant-panel.tsx`) | — |
-| 2b | AI smart actions (extract / summarise / draft clause) + admin toggle | ⬜ pending | AI feature done |
-| 3 | Wire onboarding host behaviour (welcome, checklist, tours, shortcuts) | ✅ done | — |
-| 4 | Help Centre route `/help` + sidebar item `nav-help` | ⬜ pending | tour step, help menu link |
-| 5 | Fix known regressions (`.env.example`; sidebar initials ✅ fixed) | ⬜ partial | correctness |
-| 6 | Visual QA pass (breakpoints, dark mode, print, roles, keyboard) | ⬜ pending | polish done |
+| 0 | Create 3 missing components | ✅ done (23 Oct) | build unblocked |
+| 1 | Switch AI from Gemini to **Groq** (`NEXT_GROQ_AI_API_KEY`) | ✅ done (24 Oct) | model `openai/gpt-oss-120b`; key set on dev deployment |
+| 2 | AI assistant chat panel | ✅ done | verified live |
+| 2b | AI smart actions (extract / summarise / draft clause) + admin toggle | ✅ done (24 Oct) | verified live |
+| 3 | Onboarding host behaviour | ✅ done | — |
+| 4 | Help Centre `/help` + sidebar `nav-help` | ✅ done (24 Oct) | — |
+| 5 | Known regressions (`.env.example`, wizard lint warning, flaky tests) | ✅ done (24 Oct) | — |
+| 6 | Visual QA pass (breakpoints, dark mode, print, roles, keyboard) | ⬜ pending | needs a person with a browser |
+
+**Still open:** task 6, and setting `NEXT_GROQ_AI_API_KEY` on the **production** Convex deployment.
 
 Detailed tasks and acceptance criteria:
 

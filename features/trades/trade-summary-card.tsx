@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { computeTradeValue, display, formatDate, formatMoney, formatPrice, formatQuantity } from "@/lib/format";
 import { DIRECTION_LABEL } from "@/lib/status";
@@ -11,7 +12,7 @@ import { useWizard } from "./wizard-context";
 /** Persistent summary next to the wizard: always shows what's been entered so far. */
 export function TradeSummaryCard() {
   const { form, meta } = useWizard();
-  const values = form.watch();
+  const values = useWatch({ control: form.control });
   const labels = useTradeLabels(values);
   const [open, setOpen] = useState(false);
   const computed = computeTradeValue(values.quantity, values.pricePerUom);

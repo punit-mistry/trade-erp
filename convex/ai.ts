@@ -16,8 +16,11 @@ import { computeNextAction } from "./trades";
 import {
   AI_DAILY_CAP,
   AI_DATA_NOTICE,
+  AI_KEY_ENV,
   AI_MAX_EXTRACT_CHARS,
   AI_MAX_INPUT_CHARS,
+  AI_PROVIDER,
+  AI_WORKSPACE_DAILY_CAP,
   AiError,
   aiConfig,
   assistantSystemPrompt,
@@ -26,6 +29,7 @@ import {
   compactJson,
   extractJsonObject,
   findRecordNumbers,
+  nameSimilarity,
   normaliseSupplierExtraction,
   normaliseTradeExtraction,
   safeTradeFacts,
@@ -48,7 +52,7 @@ import { validateTrade } from "./lib/tradeValidation";
 import { checklistProgress } from "./lib/workflow";
 
 /**
- * AI assistant (Google Gemini free tier via its OpenAI-compatible API).
+ * AI assistant (Groq free tier via its OpenAI-compatible API).
  * All answers come from the model, grounded in data the requesting user is
  * allowed to see. Nothing is fabricated when AI is unavailable — the UI is
  * told it is not configured / disabled instead.
@@ -66,14 +70,27 @@ async function aiAvailability(ctx: QueryCtx | MutationCtx) {
 async function assertAvailable(ctx: QueryCtx | MutationCtx) {
   const a = await aiAvailability(ctx);
   if (!a.configured) {
-    throw appError("INVALID", "The AI assistant isn't configured — an administrator must add GEMINI_API_KEY.");
+    throw appError("INVALID", `The AI assistant isn't configured — an administrator must set ${AI_KEY_ENV} on the Convex deployment.`);
   }
   if (!a.enabled) throw appError("INVALID", "The AI assistant has been turned off by an administrator.");
 }
 
-/** Counts one AI request against the user's daily cap (throws when exhausted). */
+/**
+ * Counts one AI request against the user's and the workspace's daily caps
+ * (throws when either is exhausted, before anything is counted).
+ */
 async function consumeQuota(ctx: MutationCtx, userId: Id<"users">) {
   const day = utcDay();
+  const workspace = await ctx.db
+    .query("aiWorkspaceUsage")
+    .withIndex("by_day", (q) => q.eq("day", day))
+    .unique();
+  if (workspace && workspace.count >= AI_WORKSPACE_DAILY_CAP) {
+    throw appError(
+      "CONFLICT",
+      "The workspace has used today's shared AI allowance on Groq's free tier. It resets at 00:00 UTC.",
+    );
+  }
   const row = await ctx.db
     .query("aiUsage")
     .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
@@ -86,6 +103,8 @@ async function consumeQuota(ctx: MutationCtx, userId: Id<"users">) {
   }
   if (row) await ctx.db.patch(row._id, { count: row.count + 1 });
   else await ctx.db.insert("aiUsage", { userId, day, count: 1 });
+  if (workspace) await ctx.db.patch(workspace._id, { count: workspace.count + 1 });
+  else await ctx.db.insert("aiWorkspaceUsage", { day, count: 1 });
 }
 
 function friendlyError(e: unknown): string {
@@ -113,7 +132,8 @@ export const status = query({
       enabled: a.enabled,
       available: a.available,
       model: a.model,
-      provider: "Google Gemini (free tier)",
+      provider: AI_PROVIDER,
+      keyEnv: AI_KEY_ENV,
       notice: AI_DATA_NOTICE,
       dailyCap: AI_DAILY_CAP,
       usedToday: usage?.count ?? 0,
@@ -480,13 +500,18 @@ export const buildChatContext = internalQuery({
       userName: displayName(user),
       today: utcDay(),
       page: args.page,
-      helpText: helpContentAsText(user.role).slice(0, 9000),
-      dataText: compactJson(data, 9000),
+      // Sized for Groq's free tier (~8k tokens per minute for the whole key).
+      helpText: helpContentAsText(user.role).slice(0, 6000),
+      dataText: compactJson(data, 6000),
     });
     return {
       messages: [
         { role: "system", content: system },
-        ...history.map((m) => ({ role: m.role, content: m.content.slice(0, AI_MAX_INPUT_CHARS) }) as ChatMessage),
+        ...history.map((m, i) => {
+          // Older turns are trimmed harder; the latest question is kept in full.
+          const max = i >= history.length - 2 ? AI_MAX_INPUT_CHARS : 1500;
+          return { role: m.role, content: m.content.slice(0, max) } as ChatMessage;
+        }),
       ],
       contextRefs: refs.slice(0, 8),
     };
@@ -596,21 +621,17 @@ export const matchEntities = internalQuery({
   args: { counterpartyName: v.optional(v.string()), commodityName: v.optional(v.string()) },
   handler: async (ctx, args): Promise<{ counterparties: EntityMatch[]; commodities: EntityMatch[] }> => {
     await requireViewer(ctx);
-    const score = (candidate: string, wanted: string, rank: number) => {
-      const a = candidate.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const b = wanted.toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (a === b) return 1;
-      if (a.includes(b) || b.includes(a)) return 0.85 - rank * 0.05;
-      return Math.max(0.3, 0.65 - rank * 0.1);
-    };
+    // Search hits are only candidates; keep those whose names actually resemble the extracted one.
+    const MIN_SCORE = 0.3;
+    const rank = (list: EntityMatch[]) => list.filter((m) => m.score >= MIN_SCORE).sort((x, y) => y.score - x.score);
     const counterparties: EntityMatch[] = [];
     const cpName = args.counterpartyName?.trim();
     if (cpName) {
       const rows = await ctx.db
         .query("counterparties")
         .withSearchIndex("search", (q) => q.search("searchText", cpName.toLowerCase()).eq("archived", false))
-        .take(3);
-      rows.forEach((c, i) => counterparties.push({ id: c._id, name: c.name, code: c.code, score: score(c.name, cpName, i) }));
+        .take(5);
+      for (const c of rows) counterparties.push({ id: c._id, name: c.name, code: c.code, score: nameSimilarity(c.name, cpName) });
     }
     const commodities: EntityMatch[] = [];
     const cName = args.commodityName?.trim();
@@ -618,12 +639,13 @@ export const matchEntities = internalQuery({
       const rows = await ctx.db
         .query("commodities")
         .withSearchIndex("search", (q) => q.search("searchText", cName.toLowerCase()).eq("active", true))
-        .take(3);
-      rows.forEach((c, i) =>
-        commodities.push({ id: c._id, name: c.name, code: c.code, score: Math.max(score(c.name, cName, i), score(c.code, cName, i)) }),
-      );
+        .take(5);
+      for (const c of rows) {
+        const score = Math.max(nameSimilarity(c.name, cName), nameSimilarity(c.code, cName));
+        commodities.push({ id: c._id, name: c.name, code: c.code, score });
+      }
     }
-    return { counterparties, commodities };
+    return { counterparties: rank(counterparties).slice(0, 3), commodities: rank(commodities).slice(0, 3) };
   },
 });
 

@@ -5,6 +5,7 @@ import {
   FileText,
   FolderOpen,
   LayoutDashboard,
+  LifeBuoy,
   ScrollText,
   Ship,
   ArrowLeftRight,
@@ -18,7 +19,13 @@ export type NavGroup = { label: string; items: NavItem[] };
 
 /** Single source of truth for routes shown in the sidebar and breadcrumbs. */
 export const NAV: NavGroup[] = [
-  { label: "Workspace", items: [{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboard }] },
+  {
+    label: "Workspace",
+    items: [
+      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Help Centre", href: "/help", icon: LifeBuoy },
+    ],
+  },
   {
     label: "Trade Operations",
     items: [

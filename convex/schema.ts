@@ -186,7 +186,7 @@ export default defineSchema({
     maxUploadMb: v.number(),
     allowedFileTypes: v.array(v.string()), // MIME types
     dispatchChecklistTemplate: v.array(v.string()),
-    // Admin switch for the AI assistant (undefined = on when GEMINI_API_KEY is configured).
+    // Admin switch for the AI assistant (undefined = on when NEXT_GROQ_AI_API_KEY is configured).
     aiEnabled: v.optional(v.boolean()),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.number(),
@@ -548,6 +548,12 @@ export default defineSchema({
     day: v.string(), // YYYY-MM-DD (UTC)
     count: v.number(),
   }).index("by_user_day", ["userId", "day"]),
+
+  /** Workspace-wide daily request counter (the free-tier limit applies to the whole API key). */
+  aiWorkspaceUsage: defineTable({
+    day: v.string(), // YYYY-MM-DD (UTC)
+    count: v.number(),
+  }).index("by_day", ["day"]),
 
   /** Cached AI trade summaries, invalidated when the trade changes. */
   aiTradeSummaries: defineTable({

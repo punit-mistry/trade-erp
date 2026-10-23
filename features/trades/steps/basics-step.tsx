@@ -2,7 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { ArrowDownLeft, ArrowUpRight, RefreshCw } from "lucide-react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +29,7 @@ const DIRECTIONS = [
 export function BasicsStep() {
   const { form, onCounterpartySelected, onCompanySelected, onDirectionChanged, reapplyCounterpartyDefaults, errorFor, setField } =
     useWizard();
-  const direction = form.watch("direction");
-  const counterpartyId = form.watch("counterpartyId");
+  const [direction, counterpartyId] = useWatch({ control: form.control, name: ["direction", "counterpartyId"] });
   const counterparty = useQuery(api.counterparties.get, counterpartyId ? { id: counterpartyId } : "skip");
 
   const defaults = counterparty

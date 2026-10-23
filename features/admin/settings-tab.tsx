@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes";
 import { getErrorMessage } from "@/lib/errors";
+import { AiSettingsCard } from "./ai-settings-card";
 
 type SettingsForm = {
   tradeNumberPrefix: string;
@@ -64,7 +65,12 @@ export function SettingsTab() {
   // Bumping the key re-mounts the form with the latest saved values ("Discard").
   const [formKey, setFormKey] = useState(0);
   if (!settings) return <PageSkeleton />;
-  return <SettingsEditor key={formKey} initial={toForm(settings)} onReset={() => setFormKey((k) => k + 1)} />;
+  return (
+    <div className="space-y-4">
+      <AiSettingsCard />
+      <SettingsEditor key={formKey} initial={toForm(settings)} onReset={() => setFormKey((k) => k + 1)} />
+    </div>
+  );
 }
 
 function SettingsEditor({ initial, onReset }: { initial: SettingsForm; onReset: () => void }) {

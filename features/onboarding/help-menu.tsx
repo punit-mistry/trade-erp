@@ -1,6 +1,7 @@
 "use client";
 
-import { CircleHelp, Compass, Keyboard, ListChecks, Sparkles } from "lucide-react";
+import { CircleHelp, Compass, Keyboard, LifeBuoy, ListChecks, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,12 @@ export function HelpMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onboarding.openShortcuts()}>
             <Keyboard /> Keyboard shortcuts
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/help">
+              <LifeBuoy /> Help Centre
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

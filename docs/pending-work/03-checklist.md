@@ -4,107 +4,76 @@ Flat, tickable list. Details and acceptance criteria are in
 [`01-ai-assistant.md`](./01-ai-assistant.md) and
 [`02-ui-ux-polish.md`](./02-ui-ux-polish.md).
 
-**Provider decision:** AI must run on **Groq API** (`NEXT_GROQ_AI_API_KEY`), with
-**Next.js + Convex**. The existing backend targets Gemini and must be switched.
+**Provider decision:** AI runs on **Groq API** (`NEXT_GROQ_AI_API_KEY`), with
+**Next.js + Convex**. Switched from Gemini on 24 Oct 2026.
 
 ---
 
-## Phase 0 — Protect the current work
+## Phase 0 — Protect the current work ✅
 
-- [ ] Commit or stash the current tree before editing (34 modified + 18 untracked files,
-      last commit `d467f47`). Nothing here is committed yet.
-- [ ] Confirm `NEXT_GROQ_AI_API_KEY` is in `.env.local` (it is) and add it to the Convex
-      deployment: `npx convex env set NEXT_GROQ_AI_API_KEY <key>`.
-- [ ] Run `npx convex dev` once to push the new schema and regenerate
-      `convex/_generated/api.d.ts` (do not hand-edit generated files).
+- [x] Work committed (`368bee6`, `e373eea` on `feature/khatib/todos`).
+- [x] `NEXT_GROQ_AI_API_KEY` set on the Convex **dev** deployment (`lovely-rat-249`).
+      **Prod still needs it:** `npx convex env set NEXT_GROQ_AI_API_KEY <key> --prod`.
+- [x] `npx convex dev --once` pushed schema/functions and regenerated `convex/_generated`.
 
 ## Phase 1 — Unblock the build ✅ (23 Oct)
 
-- [x] Create `features/onboarding/onboarding-host.tsx` (welcome + checklist + shortcuts
-      + pending tour runner).
-- [x] Create `features/onboarding/help-menu.tsx` (top-bar `?` menu, `data-tour="help"`).
-- [x] Create `features/ai/ai-assistant-button.tsx` + `features/ai/ai-assistant-panel.tsx`.
-- [x] `npm run typecheck`, `npm run lint` and `npm run build` → green.
-- [x] Fix `components/layout/app-sidebar.tsx` initials regex: `/[s@.]+/` →
-      `/[\s@.]+/`.
+- [x] `features/onboarding/onboarding-host.tsx`, `features/onboarding/help-menu.tsx`,
+      `features/ai/ai-assistant-button.tsx`, `features/ai/ai-assistant-panel.tsx`.
+- [x] Sidebar initials regex fix.
 
-## Phase 2 — Switch AI to Groq
+## Phase 2 — Switch AI to Groq ✅ (24 Oct)
 
-- [ ] `convex/lib/ai.ts`: `DEFAULT_AI_BASE_URL = "https://api.groq.com/openai/v1/"`.
-- [ ] `convex/lib/ai.ts`: `DEFAULT_AI_MODEL` → current Groq model (verify in console;
-      start with `llama-3.3-70b-versatile`).
-- [ ] `convex/lib/ai.ts`: read `process.env.NEXT_GROQ_AI_API_KEY`.
-- [ ] Rewrite `AI_DATA_NOTICE` for Groq free-tier terms (remove Google claim).
-- [ ] Update `classifyHttpError()`: key name in 401/403, 429 wording (Groq/retry-after).
-- [ ] Update `convex/ai.ts` provider string + any `GEMINI_API_KEY` copy.
-- [ ] `.env.example`: `GROQ_AI_API_KEY` → `NEXT_GROQ_AI_API_KEY`, add trailing newline,
-      note it belongs on the Convex deployment.
-- [ ] Confirm JSON mode works for the chosen model (or rely on the existing 400 retry);
-      ensure prompts contain the word "JSON" if the model requires it.
-- [ ] Review `AI_DAILY_CAP = 100` against Groq limits; add a shared/global cap if the
-      free quota is per-org.
-- [ ] Add unit tests for `aiConfig`, `classifyHttpError`, `extractJsonObject`,
-      extraction normalisers, `safeTradeFacts`, `utcDay`.
+- [x] `DEFAULT_AI_BASE_URL = "https://api.groq.com/openai/v1/"`.
+- [x] `DEFAULT_AI_MODEL = "openai/gpt-oss-120b"` — verified against the key's live model list
+      (`llama-3.3-70b-versatile` is no longer offered). Reasoning models get `reasoning_effort: "low"`.
+- [x] `aiConfig()` reads `NEXT_GROQ_AI_API_KEY`.
+- [x] `AI_DATA_NOTICE` rewritten for Groq.
+- [x] `classifyHttpError()` names the Groq key; 429 uses `retry-after`.
+- [x] `convex/ai.ts` provider string and "not configured" copy.
+- [x] `.env.example` documents `NEXT_GROQ_AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`.
+- [x] JSON mode verified live on Groq for trade/supplier extraction and clause drafting.
+- [x] Quota: 100/user/day plus a new workspace cap of 900/day (`aiWorkspaceUsage` table);
+      chat context trimmed for Groq's ~8k tokens/minute free-tier limit.
+- [x] Unit tests in `tests/ai.test.ts` (21 tests). Found and fixed: a non-numeric price ("abc")
+      was turned into 0.
+- [x] Counterparty/commodity matching now uses real name similarity (`nameSimilarity`);
+      unrelated search hits are no longer offered as "65% matches".
 
-## Phase 3 — AI UI
+## Phase 3 — AI UI ✅ (24 Oct)
 
-- [x] `features/ai/ai-assistant-panel.tsx`: thread list, streaming messages, composer,
-      stop / retry / delete, context links, quota indicator, data notice, empty/error
-      states, responsive sheet/panel, keyboard + focus handling.
-- [ ] Image/attachment support: **not in the backend** — do not promise it in the UI
-      unless added.
-- [ ] Trade wizard: paste email → `api.ai.extractTradeFromText`, review suggestions,
-      matches for counterparties/commodities, prefill on accept.
-- [ ] Supplier form: paste signature/letterhead → `api.ai.extractSupplierFromText`.
-- [ ] Trade detail: AI summary (`api.ai.summariseTrade` / `tradeSummary`) with
-      model, author, and "outdated" badge.
-- [ ] Template editor: `api.ai.draftClause` with confirmation + unknown-variable warning.
-- [ ] Admin AI card: `api.ai.status.canManage` + `api.ai.setEnabled`, provider/model/key
-      state.
-- [ ] Verify permission gates: `trade.create`, `counterparty.create`,
-      `contractTemplate.manage`, `settings.manage`, view-only chat.
+- [x] Chat panel (23 Oct).
+- [x] Image/attachment support: not offered (backend has none).
+- [x] Trade wizard **Fill from email** — `features/trades/ai-trade-import.tsx`.
+- [x] Supplier form **Fill from signature** — `features/suppliers/ai-supplier-import.tsx`.
+- [x] Trade overview **AI summary** with Outdated badge — `features/trades/ai-trade-summary.tsx`.
+- [x] Template editor **Draft with AI** — `features/contracts/templates/ai-clause-drafter.tsx`.
+- [x] Admin AI card (System Settings) — `features/admin/ai-settings-card.tsx`.
+- [x] Permission gates: `trade.create`, `counterparty.create`, `contractTemplate.manage`,
+      `settings.manage` checked in the UI and enforced again on the server.
+- [x] Live end-to-end check on the dev deployment: status, chat, both extractions,
+      trade summary and clause drafting all returned real Groq output.
 
-## Phase 4 — Onboarding & Help Centre
+## Phase 4 — Onboarding & Help Centre ✅ (24 Oct)
 
-- [ ] `app/(app)/help/page.tsx` + Help Centre UI using `HELP_GUIDES` /
-      `guidesForRole` / `HELP_CATEGORIES` / `findGuide`; tour buttons where
-      `guide.tourStep` is set.
-- [ ] Add Help Centre to `components/layout/nav-config.ts` (creates `nav-help`).
-- [x] Wire help-menu actions to the onboarding store; hide page-tour action when the
-      tour has no anchors on the current page.
-- [ ] Verify welcome-once, tour completion persistence, checklist tick/dismiss/collapse.
-- [ ] Verify every `data-tour` anchor in `features/onboarding/tours.ts` resolves.
+- [x] `app/(app)/help/page.tsx` + `features/onboarding/help-centre.tsx` (search, categories,
+      role filter, guide detail, tour buttons).
+- [x] "Help Centre" in `nav-config.ts` (creates `nav-help`) and in the `?` menu.
+- [x] All 34 `data-tour` anchors in `tours.ts` resolve.
+- [ ] Verify in a browser: welcome shows once, tour completion persists, checklist tick/dismiss/collapse.
 
 ## Phase 5 — QA
 
-- [ ] `npm run typecheck` · `npm run lint` · `npm test` · `npm run build` all pass.
-- [ ] Manual pass at 360 / 768 / 1440 px, light + dark, Admin / Manager / Staff /
-      pending.
-- [ ] Print preview of contract and B/L; `no-print` respected.
-- [ ] Keyboard-only walkthrough; `Ctrl/⌘ K`, `?`, Esc.
-- [ ] Reduced-motion check.
-- [ ] No console/hydration errors on any route.
-- [ ] Update `README.md` / `docs/ARCHITECTURE.md` if they describe AI or shell
-      behaviour (check for Gemini references).
+- [x] `npm run typecheck` · `npm run lint` (0 problems) · `npm test` (57 passing) · `npm run build`.
+- [x] `trade-wizard.tsx` React Compiler warning fixed (`useWatch` / `form.subscribe` instead of `form.watch`).
+- [x] Flaky 5 s test timeouts fixed (`testTimeout: 20_000` in `vitest.config.mts`).
+- [x] `README.md` / `docs/ARCHITECTURE.md` updated (AI section, env vars, `/help`).
+- [ ] **Manual, needs a browser:** 360 / 768 / 1440 px, light + dark, Admin / Manager / Staff / pending.
+- [ ] **Manual:** print preview of contract and B/L; `no-print` respected.
+- [ ] **Manual:** keyboard-only walkthrough; `Ctrl/⌘ K`, `?`, Esc; reduced motion.
+- [ ] **Manual:** no console/hydration errors on any route.
 
 ---
-
-## Quick file map
-
-| Need | File |
-| --- | --- |
-| AI provider config, prompts, JSON/SSE helpers | `convex/lib/ai.ts` |
-| AI actions/queries, quota, streaming scheduler | `convex/ai.ts` |
-| AI tables + `settings.aiEnabled` + `userPrefs` | `convex/schema.ts` |
-| Onboarding checklist/prefs backend | `convex/onboarding.ts` |
-| Help guides / tour ids (client-safe) | `convex/lib/helpContent.ts` |
-| Tour definitions | `features/onboarding/tours.ts` |
-| driver.js runner | `features/onboarding/tour-runner.ts` |
-| Transient onboarding UI state | `features/onboarding/onboarding-store.ts` |
-| Checklist / welcome / shortcuts UI | `features/onboarding/{checklist-panel,welcome-dialog,shortcuts-dialog}.tsx` |
-| Shell wiring | `app/(app)/layout.tsx`, `components/layout/topbar.tsx` |
-| Nav + breadcrumbs | `components/layout/{nav-config,breadcrumbs,page-title}.tsx` |
-| Missing components | `features/onboarding/{onboarding-host,help-menu}.tsx`, `features/ai/*` |
 
 ## Commands
 
@@ -114,7 +83,7 @@ npm run lint
 npm test
 npm run build
 
-npx convex dev                                  # push functions/schema, codegen
-npx convex env set NEXT_GROQ_AI_API_KEY <key>   # secret for Convex actions
-npx convex env list                             # verify it is set
+npx convex dev                                         # push functions/schema, codegen
+npx convex env set NEXT_GROQ_AI_API_KEY <key> --prod   # production deployment still needs the key
+npx convex env list                                    # verify it is set
 ```

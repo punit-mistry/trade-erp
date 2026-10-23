@@ -1,33 +1,40 @@
 /**
- * AI (LLM) helpers. Talks to Google Gemini's free tier through its
- * OpenAI-compatible endpoint (any OpenAI-compatible provider works via
- * AI_BASE_URL). Everything here is real model output — there are no canned
- * answers. Pure helpers (parsing/validation/redaction) are unit-tested.
+ * AI (LLM) helpers. Talks to Groq's free tier through its OpenAI-compatible
+ * endpoint (any OpenAI-compatible provider works via AI_BASE_URL). Everything
+ * here is real model output — there are no canned answers. Pure helpers
+ * (parsing/validation/redaction) are unit-tested.
  *
  * Configuration (Convex deployment env, never exposed to the browser):
- *   GEMINI_API_KEY  required to enable AI
- *   AI_MODEL        optional, default gemini-3.5-flash-lite
- *   AI_BASE_URL     optional, default Gemini's OpenAI-compatible base URL
+ *   NEXT_GROQ_AI_API_KEY  required to enable AI
+ *   AI_MODEL              optional, default openai/gpt-oss-120b
+ *   AI_BASE_URL           optional, default Groq's OpenAI-compatible base URL
  */
 import { z } from "zod";
 
-export const DEFAULT_AI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/";
-export const DEFAULT_AI_MODEL = "gemini-3.5-flash-lite";
+export const AI_KEY_ENV = "NEXT_GROQ_AI_API_KEY";
+export const AI_PROVIDER = "Groq (free tier)";
+export const DEFAULT_AI_BASE_URL = "https://api.groq.com/openai/v1/";
+export const DEFAULT_AI_MODEL = "openai/gpt-oss-120b";
 /** Per-user requests per UTC day, protecting the shared free-tier quota. */
 export const AI_DAILY_CAP = 100;
+/**
+ * Requests per UTC day for the whole workspace. Groq's free tier limits the
+ * API key (1,000 requests/day), so one user must not be able to drain it.
+ */
+export const AI_WORKSPACE_DAILY_CAP = 900;
 export const AI_MAX_INPUT_CHARS = 4000;
 export const AI_MAX_EXTRACT_CHARS = 8000;
 
 export const AI_DATA_NOTICE =
-  "AI runs on Google Gemini's free tier: Google may use free-tier prompts to improve its products. " +
+  "AI runs on Groq's free tier: your question and the ERP records needed to answer it are sent to Groq to generate the reply. " +
   "Internal notes, bank details, emails and phone numbers from the ERP are never sent.";
 
 export type AiConfig = { configured: boolean; apiKey: string; model: string; baseUrl: string };
 
-export function aiConfig(): AiConfig {
-  const apiKey = (process.env.GEMINI_API_KEY ?? "").trim();
-  const model = (process.env.AI_MODEL ?? "").trim() || DEFAULT_AI_MODEL;
-  let baseUrl = (process.env.AI_BASE_URL ?? "").trim() || DEFAULT_AI_BASE_URL;
+export function aiConfig(env: Record<string, string | undefined> = process.env): AiConfig {
+  const apiKey = (env[AI_KEY_ENV] ?? "").trim();
+  const model = (env.AI_MODEL ?? "").trim() || DEFAULT_AI_MODEL;
+  let baseUrl = (env.AI_BASE_URL ?? "").trim() || DEFAULT_AI_BASE_URL;
   if (!baseUrl.endsWith("/")) baseUrl += "/";
   return { configured: apiKey.length > 0, apiKey, model, baseUrl };
 }
@@ -51,16 +58,29 @@ export class AiError extends Error {
   }
 }
 
+/** Seconds to wait from a `retry-after` header (seconds or HTTP date); null when absent/invalid. */
+export function retryAfterSeconds(header: string | null | undefined, now = Date.now()): number | null {
+  if (!header) return null;
+  const secs = Number(header.trim());
+  if (header.trim() !== "" && Number.isFinite(secs)) return secs >= 0 ? Math.ceil(secs) : null;
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? null : Math.max(0, Math.ceil((at - now) / 1000));
+}
+
 /** Maps an HTTP status from the provider to a friendly, actionable message. */
-export function classifyHttpError(status: number, body: string): AiError {
+export function classifyHttpError(status: number, body: string, retryAfter?: string | null): AiError {
   if (status === 401 || status === 403) {
-    return new AiError("auth", "The AI provider rejected the API key. An administrator should check GEMINI_API_KEY.");
+    return new AiError("auth", `The AI provider rejected the API key. An administrator should check ${AI_KEY_ENV}.`);
   }
   if (status === 429) {
-    return new AiError(
-      "rate_limited",
-      "AI is busy right now — the free-tier limit was reached. Please try again in a minute (daily limits reset at midnight Pacific time).",
-    );
+    const wait = retryAfterSeconds(retryAfter);
+    const when =
+      wait === null || wait <= 5
+        ? "Please try again in a few seconds."
+        : wait <= 120
+          ? `Please try again in about ${wait} seconds.`
+          : `Please try again in about ${Math.ceil(wait / 60)} minutes.`;
+    return new AiError("rate_limited", `Groq's rate limit was reached — the free tier allows only a few requests per minute. ${when}`);
   }
   if (status === 400 || status === 404) {
     const hint = /model/i.test(body) ? " Check the AI_MODEL setting." : "";
@@ -82,12 +102,19 @@ type CompletionOptions = {
   jsonMode?: boolean;
 };
 
+/** Reasoning models spend output tokens thinking first; keep that short so answers aren't cut off. */
+export function reasoningEffort(model: string): "low" | undefined {
+  return /gpt-oss|qwen3/i.test(model) ? "low" : undefined;
+}
+
 function requestBody(cfg: AiConfig, o: CompletionOptions, stream: boolean) {
+  const effort = reasoningEffort(cfg.model);
   return JSON.stringify({
     model: cfg.model,
     messages: o.messages,
     temperature: o.temperature ?? 0.3,
     ...(o.maxTokens ? { max_tokens: o.maxTokens } : {}),
+    ...(effort ? { reasoning_effort: effort } : {}),
     ...(o.jsonMode ? { response_format: { type: "json_object" } } : {}),
     ...(stream ? { stream: true } : {}),
   });
@@ -135,7 +162,7 @@ export async function chatCompletion(cfg: AiConfig, o: CompletionOptions): Promi
     });
   }
   const text = await res.text();
-  if (!res.ok) throw classifyHttpError(res.status, text);
+  if (!res.ok) throw classifyHttpError(res.status, text, res.headers.get("retry-after"));
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -200,7 +227,7 @@ export async function streamChatCompletion(
     headers: headers(cfg),
     body: requestBody(cfg, o, true),
   });
-  if (!res.ok) throw classifyHttpError(res.status, await res.text());
+  if (!res.ok) throw classifyHttpError(res.status, await res.text(), res.headers.get("retry-after"));
   const type = res.headers.get("content-type") ?? "";
   if (!res.body || !type.includes("text/event-stream")) {
     // Provider answered without streaming — parse as a normal completion.
@@ -299,8 +326,11 @@ function cleanText(value: unknown, max: number): string | undefined {
 function cleanNumber(value: unknown): number | undefined {
   if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (typeof value !== "string") return undefined;
-  const n = Number(value.replace(/[, ]/g, "").replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) && value.trim() !== "" ? n : undefined;
+  const digits = value.replace(/[, ]/g, "").replace(/[^\d.-]/g, "");
+  // No digits at all (e.g. "abc", "TBD") must not become 0.
+  if (!/\d/.test(digits)) return undefined;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 export const TRADE_EXTRACT_FIELDS = [
@@ -505,6 +535,38 @@ export function safeTradeFacts(trade: Record<string, unknown>): Record<string, u
     if (value !== undefined && value !== null && value !== "") out[key] = value;
   }
   return out;
+}
+
+/** Words that don't distinguish one company from another. */
+const NAME_NOISE = new Set(
+  "ltd limited pvt private co company corp corporation inc llc llp plc gmbh sa ag bv pte the and of & international intl".split(" "),
+);
+
+function nameTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !NAME_NOISE.has(w));
+}
+
+/**
+ * How alike two company/commodity names are (0–1), ignoring case, punctuation
+ * and legal suffixes. Used to rank search hits; it is not a fuzzy matcher, so
+ * unrelated names score 0 rather than "a bit similar".
+ */
+export function nameSimilarity(candidate: string, wanted: string): number {
+  const a = nameTokens(candidate);
+  const b = nameTokens(wanted);
+  if (a.length === 0 || b.length === 0) return 0;
+  const ja = a.join(" ");
+  const jb = b.join(" ");
+  if (ja === jb) return 1;
+  if (ja.includes(jb) || jb.includes(ja)) return 0.9;
+  const setA = new Set(a);
+  const shared = b.filter((w) => setA.has(w)).length;
+  const union = new Set([...a, ...b]).size;
+  return Math.round((shared / union) * 100) / 100;
 }
 
 export function compactJson(value: unknown, maxChars = 6000): string {

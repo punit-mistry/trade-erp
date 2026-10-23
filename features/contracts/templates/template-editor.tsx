@@ -51,6 +51,7 @@ import { formatDateTime } from "@/lib/format";
 import { TEMPLATE_STATUS } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { ContractPreview } from "../contract-preview";
+import { AiClauseDrafter } from "./ai-clause-drafter";
 import { useTemplateActions } from "./template-actions";
 import { VariablePicker } from "./variable-reference";
 import { useSetPageTitle } from "@/components/layout/page-title";
@@ -459,9 +460,12 @@ export function TemplateEditor({ templateId }: { templateId?: Id<"contractTempla
                 description="Numbered automatically in the order shown."
                 actions={
                   editable && (
-                    <Button type="button" size="sm" variant="outline" onClick={() => clauses.append({ heading: "", body: "" })}>
-                      <Plus /> Add clause
-                    </Button>
+                    <>
+                      <AiClauseDrafter onInsert={(clause) => clauses.append(clause)} />
+                      <Button type="button" size="sm" variant="outline" onClick={() => clauses.append({ heading: "", body: "" })}>
+                        <Plus /> Add clause
+                      </Button>
+                    </>
                   )
                 }
               >

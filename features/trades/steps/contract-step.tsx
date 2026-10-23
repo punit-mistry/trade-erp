@@ -2,7 +2,7 @@
 
 import { ChevronDown, Lock } from "lucide-react";
 import { useState } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,9 +14,9 @@ import { StepHeading, WizardField } from "./wizard-field";
 
 export function ContractStep() {
   const { form, can, onTemplateSelected, setField } = useWizard();
-  const [direction, companyId] = form.watch(["direction", "companyId"]);
+  const [direction, companyId] = useWatch({ control: form.control, name: ["direction", "companyId"] });
   const canOverrideNumber = can("contract.overrideNumber");
-  const clauseValues = form.watch(["otherConditions", "additionalTerms"]);
+  const clauseValues = useWatch({ control: form.control, name: ["otherConditions", "additionalTerms"] });
   const [moreOpen, setMoreOpen] = useState(clauseValues.some((v) => v !== undefined && v !== ""));
 
   return (

@@ -29,6 +29,7 @@ import { ActivityTimeline } from "@/features/activity/activity-timeline";
 import { TradeBlTab } from "@/features/bl/trade-bl-tab";
 import { TradeContractTab } from "@/features/contracts/trade-contract-tab";
 import { TradeDocumentsTab } from "@/features/documents/trade-documents-tab";
+import { AiTradeSummary } from "./ai-trade-summary";
 import { DirectionPill } from "./direction-pill";
 import { CloneTradeDialog, CreateTemplateDialog, TradeStatusActions } from "./trade-actions";
 import { ValueOverrideDialog } from "./value-override-dialog";
@@ -327,6 +328,7 @@ function OverviewTab({ data, blockingMessages, warnings }: { data: TradeData; bl
             )}
           </ol>
         </Section>
+        <AiTradeSummary tradeId={trade._id} />
         {trade.internalNotes && (
           <Section
             title={

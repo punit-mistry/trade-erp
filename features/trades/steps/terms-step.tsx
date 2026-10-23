@@ -2,7 +2,7 @@
 
 import { ChevronDown, Lock } from "lucide-react";
 import { useState } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useWatch } from "react-hook-form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -21,7 +21,7 @@ const TOLERANCE_OPTIONS = [
 
 export function TermsStep() {
   const { form, errorFor } = useWizard();
-  const values = form.watch(["origin", "manufacturer", "containerLoading", "freightTerms", "specialConditions"]);
+  const values = useWatch({ control: form.control, name: ["origin", "manufacturer", "containerLoading", "freightTerms", "specialConditions"] });
   const [advancedOpen, setAdvancedOpen] = useState(values.some((v) => v !== undefined && v !== ""));
 
   return (
