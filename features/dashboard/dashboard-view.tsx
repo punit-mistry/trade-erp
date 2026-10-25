@@ -54,7 +54,7 @@ export function DashboardView() {
             </Button>
           ) : undefined
         }
-        className="mb-0"
+        className="mb-2"
       />
 
       <QuickShortcuts />

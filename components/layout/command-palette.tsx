@@ -98,19 +98,26 @@ export function CommandPalette() {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onOpenChange(true)}
-        className="h-8 w-8 justify-center px-0 text-muted-foreground sm:w-56 sm:justify-between sm:px-2.5"
-        aria-label="Search (Ctrl+K)"
-      >
-        <span className="flex items-center gap-2">
-          <Search className="size-3.5" />
-          <span className="hidden sm:inline">Search trades, suppliers…</span>
-        </span>
-        <kbd className="hidden rounded border bg-muted px-1.5 font-mono text-[10px] sm:inline">Ctrl K</kbd>
-      </Button>
+      
+<Button
+  variant="outline"
+  size="sm"
+  onClick={() => onOpenChange(true)}
+  className="flex h-8 w-8 items-center justify-center gap-2 px-0 text-muted-foreground sm:w-56 sm:justify-between sm:px-2.5"
+  aria-label="Search (Ctrl+K)"
+>
+  <span className="flex min-w-0 items-center gap-2">
+    <Search className="size-3.5 shrink-0" />
+    <span className="hidden truncate sm:inline">
+      Search trades, suppliers…
+    </span>
+  </span>
+
+  <kbd className="hidden shrink-0 rounded border bg-muted px-1.5 font-mono text-[10px] sm:inline">
+    Ctrl K
+  </kbd>
+</Button>
+
       <CommandDialog
         open={open}
         onOpenChange={onOpenChange}
@@ -123,7 +130,7 @@ export function CommandPalette() {
             value={term}
             onValueChange={setTerm}
           />
-          <CommandList className="max-h-[60vh]">
+          <CommandList className="min-h-0 flex-1 max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain">
             {searching && (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Searching…

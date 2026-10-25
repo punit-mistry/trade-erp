@@ -60,7 +60,7 @@ export function Topbar() {
   return (
     <header className="no-print sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 md:px-5">
       <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
-      <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-5" />
+      <Separator orientation="vertical" className="mx-1 h-5 self-center"/>
       <div className="min-w-0 flex-1">
         <Breadcrumbs />
       </div>
@@ -70,7 +70,7 @@ export function Topbar() {
           <CommandPalette />
         </div>
         <QuickCreate />
-        <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-5 max-sm:hidden" />
+        <Separator orientation="vertical" className="mx-1 hidden h-5 self-center sm:block" />
         <AiAssistantButton />
         <Notifications />
         <HelpMenu />
