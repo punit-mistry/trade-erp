@@ -130,7 +130,7 @@ export function CommandPalette() {
             value={term}
             onValueChange={setTerm}
           />
-          <CommandList className="max-h-[60vh]">
+          <CommandList className="min-h-0 flex-1 max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain">
             {searching && (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Searching…
